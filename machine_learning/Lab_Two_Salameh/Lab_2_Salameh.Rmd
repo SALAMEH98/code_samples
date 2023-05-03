@@ -1,0 +1,531 @@
+---
+title: "Lab_Two"
+author: "Sief Salameh"
+date: "4/17/2023"
+output: pdf_document
+---
+## Loading Libraries
+
+```{r}
+library(devtools)
+
+library(diftrans)
+
+library(dplyr)
+
+library(tidyr)
+
+library(ggplot2)
+
+library(tmap)
+
+library(ggpubr)
+```
+
+## Cleaning the Data 
+
+```{r}
+Beijing <- Beijing_sample %>%
+  filter(year >= 2010 & year < 2012)
+
+# collect unique MSRP values
+uniqueMSRP <- data.frame(MSRP = unique(Beijing$MSRP))
+
+# aggregate sales at each price for 2010 (pre-lottery)
+Beijing10_sales <- Beijing %>%
+  filter(year == 2010) %>%
+  group_by(MSRP) %>%
+  summarize(count = sum(sales))
+
+# merge the MSRP and sales
+Beijing_pre <- left_join(uniqueMSRP,
+  Beijing10_sales,
+  by = "MSRP"
+) %>%
+  replace_na(list(count = 0)) %>%
+  arrange(MSRP)
+
+head(Beijing_pre)
+```
+
+## Exercise 4.1
+
+# Part A:
+
+```{r}
+Beijing11_sales <- Beijing %>%
+  filter(year == 2011) %>%
+  group_by(MSRP) %>%
+  summarize(count = sum(sales))
+
+# merge the MSRP and sales
+Beijing_post <- left_join(uniqueMSRP,
+  Beijing11_sales,
+  by = "MSRP"
+) %>%
+  replace_na(list(count = 0)) %>%
+  arrange(MSRP)
+
+head(Beijing_post)
+```
+
+# Part B:
+
+```{r}
+Tianjin <- Tianjin_sample %>%
+  filter(year >= 2010 & year < 2012)
+
+# collect unique MSRP values
+uniqueMSRP_2 <- data.frame(MSRP = unique(Tianjin$MSRP))
+
+# aggregate sales at each price for 2010 (pre-lottery)
+Tianjin10_sales <- Tianjin %>%
+  filter(year == 2010) %>%
+  group_by(MSRP) %>%
+  summarize(count = sum(sales))
+
+# merge the MSRP and sales
+Tianjin_pre <- left_join(uniqueMSRP_2,
+  Tianjin10_sales,
+  by = "MSRP"
+) %>%
+  replace_na(list(count = 0)) %>%
+  arrange(MSRP)
+
+head(Tianjin_pre)
+```
+
+# Part C:
+
+```{r}
+# aggregate sales at each price for 2010 (pre-lottery)
+Tianjin11_sales <- Tianjin %>%
+  filter(year == 2011) %>%
+  group_by(MSRP) %>%
+  summarize(count = sum(sales))
+
+# merge the MSRP and sales
+Tianjin_post <- left_join(uniqueMSRP_2,
+  Tianjin11_sales,
+  by = "MSRP"
+) %>%
+  replace_na(list(count = 0)) %>%
+  arrange(MSRP)
+
+head(Tianjin_post)
+```
+
+## Visualizing Beijing Car Sale
+
+```{r}
+Beijing_distribution_pre <- Beijing_pre %>% uncount(count)
+
+Beijing_distribution_post <- Beijing_post %>% uncount(count)
+
+bdist <- ggplot() +
+  geom_histogram(
+    data = Beijing_distribution_pre,
+    aes(
+      x = MSRP / 1000, # Let price be in terms of 1000 RMB
+      y = ..density..
+    ), # Normalize bars so their area sum to 1
+    binwidth = 20, # Each bin has width of 2000 RMB
+    fill = "orange", color = "orange", alpha = 0.35
+  ) +
+  geom_histogram(
+    data = Beijing_distribution_post,
+    aes(
+      x = MSRP / 1000, # Let price be in terms of 1000 RMB
+      y = ..density..
+    ), # Normalize bars so their area sum to 1
+    binwidth = 20, # Each bin has width of 2000 RMB
+    fill = "steelblue", color = "steelblue", alpha = 0.35
+  ) +
+  xlab("MSRP (1000 RMB)") +
+  ylab("Density")
+
+plot(bdist)
+```
+
+## Exercise 4.2
+
+# Part A:
+
+```{r}
+Tianjin_distribution_pre <- Tianjin_pre %>% uncount(count)
+
+Tianjin_distribution_post <- Tianjin_post %>% uncount(count)
+
+tdist <- ggplot() +
+  geom_histogram(
+    data = Tianjin_distribution_pre,
+    aes(
+      x = MSRP / 1000, # Let price be in terms of 1000 RMB
+      y = ..density..
+    ), # Normalize bars so their area sum to 1
+    binwidth = 20, # Each bin has width of 2000 RMB
+    fill = "orange", color = "orange", alpha = 0.35
+  ) +
+  geom_histogram(
+    data = Tianjin_distribution_post,
+    aes(
+      x = MSRP / 1000, # Let price be in terms of 1000 RMB
+      y = ..density..
+    ), # Normalize bars so their area sum to 1
+    binwidth = 20, # Each bin has width of 2000 RMB
+    fill = "steelblue", color = "steelblue", alpha = 0.35
+  ) +
+  xlab("MSRP (1000 RMB)") +
+  ylab("Density")
+
+plot(tdist)
+```
+
+# Part B:
+
+```{r}
+ggarrange(bdist, tdist,
+  labels = c("Beijing", "Tianjin"),
+  ncol = 1, nrow = 2,
+  vjust = c(1.5, .2),
+  font.label = list(size = 14, face = "bold.italic", color = "purple")
+)
+```
+
+Based on a side-by-side comparison, it appears that the shift in car sales for Tianjin follows an identical distribution from 2010 to 2011. In contrast, 
+Beijing experiences a rightward shift towards higher MSRP values as it moves 
+from 2010 to 2011. Therefore, our counterfactual - Tianjin, suggests that 
+license plate lottery winners in Beijing are more likely to sell their plates to individuals who are willing to pay them high prices or rewards. The same 
+individuals who purchase black market plates are also correspondingly buying 
+more expensive vehicles.
+
+## Computing Before-and-After Estimator
+
+```{r}
+set.seed(0)
+
+n_observations <- 100000
+
+placebo_demonstration <- data.frame(
+  sample1 = rnorm(n_observations),
+  sample2 = rnorm(n_observations)
+)
+
+ggplot(placebo_demonstration) +
+  geom_histogram(aes(
+    x = sample1,
+    y = ..density..
+  ), # Normalize bars so their area sum to 1
+  fill = "orange", color = "orange", alpha = 0.35
+  ) +
+  geom_histogram(aes(
+    x = sample2,
+    y = ..density..
+  ), # Normalize bars so their area sum to 1
+  fill = "steelblue", color = "steelblue", alpha = 0.35
+  ) +
+  xlab("Support") +
+  ylab("Density") +
+  theme(
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14)
+  )
+```
+
+## Exercise 4.3
+
+# Part A:
+
+```{r}
+set.seed(1)
+
+placebo_1 <- data.frame(
+  MSRP = Beijing_pre$MSRP,
+  count = rmultinom(
+    n = 1,
+    size = sum(Beijing_pre$count),
+    prob = Beijing_pre$count
+  )
+)
+
+head(placebo_1)
+```
+
+# Part B:
+
+```{r}
+set.seed(1)
+
+
+placebo_2 <- data.frame(
+  MSRP = Beijing_pre$MSRP,
+  count = rmultinom(
+    n = 1,
+    size = sum(Beijing_post$count),
+    prob = Beijing_pre$count
+  )
+)
+
+head(placebo_2)
+```
+
+# Part C:
+
+```{r}
+combined_data <- left_join(placebo_1, placebo_2, by = "MSRP")
+
+ggplot(combined_data) +
+  geom_histogram(aes(
+    x = count.x,
+    y = ..density..
+  ), # Normalize bars so their area sum to 1
+  fill = "orange", color = "orange", alpha = 0.35
+  ) +
+  geom_histogram(aes(
+    x = count.y,
+    y = ..density..
+  ), # Normalize bars so their area sum to 1
+  fill = "steelblue", color = "steelblue", alpha = 0.35
+  ) +
+  xlab("Support") +
+  ylab("Density") +
+  theme(
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14)
+  )
+```
+
+Placebo_1 and Placebo_2 do not appear to be drawn from the same distribution
+when we plot the number of cars sold (count variable) for each MSRP value.
+Placebo_2 appears to have a higher density than Placebo_1 for low MSRP values.
+Then Placebo_1 experiences a higher density than Placebo_2 for high MSRP values. 
+
+## Optimal Transport Cost
+
+```{r}
+bandwidths <- c(0)
+placebo_at_0 <- diftrans(
+  pre_main = placebo_1,
+  post_main = placebo_2,
+  var = MSRP,
+  bandwidth_seq = bandwidths
+)
+
+placebo_at_0
+```
+
+## Exercise 4.4
+
+# Part A:
+
+```{r}
+bandwidths <- seq(0, 100000, by = 1000)
+placebo_costs <- diftrans(
+  pre_main = placebo_1,
+  post_main = placebo_2,
+  var = MSRP,
+  bandwidth_seq = bandwidths
+)
+
+placebo_costs
+```
+
+# Part B:
+
+```{r}
+bandwidths <- seq(0, 100000, by = 1000)
+Beijing_costs <- diftrans(
+  pre_main = Beijing_pre,
+  post_main = Beijing_post,
+  var = MSRP,
+  bandwidth_seq = bandwidths
+)
+
+Beijing_costs
+```
+
+# Part C:
+
+```{r}
+results_plot <- data.frame(
+  bandwidth = bandwidths,
+  placebo_costs = placebo_costs$main,
+  Beijing_costs = Beijing_costs$main
+)
+
+ggplot(results_plot, aes(x = bandwidth)) +
+  geom_line(aes(y = placebo_costs, color = "Placebo_Costs")) +
+  geom_line(aes(y = Beijing_costs, color = "Empirical_Costs")) +
+  xlab("Bandwidth") +
+  ylab("Transport Costs") +
+  ggtitle("Transport Costs vs. Bandwidth") +
+  scale_color_manual("", values = c(
+    "Placebo_Costs" = "blue",
+    "Empirical_Costs" = "red"
+  ))
+```
+
+# Part D:
+
+```{r}
+threshold <- 0.0005
+
+benchmark_test <- which(placebo_costs$main < threshold)
+
+extract_values <- placebo_costs$bandwidth[benchmark_test]
+
+print(extract_values)
+```
+
+# Part E:
+
+The smallest value of d found in the previous step is equal to 25,000. Thus,
+the corresponding empirical transport cost is equal to 0.10076861
+
+## Computing Differences-in-Transports Estimator
+
+```{r}
+dit_at_0 <- diftrans(
+  pre_main = Beijing_pre,
+  post_main = Beijing_post,
+  pre_control = Tianjin_pre,
+  post_control = Tianjin_post,
+  var = MSRP,
+  bandwidth_seq = c(0),
+  conservative = TRUE
+)
+
+dit_at_0
+```
+
+## Exercise 4.5
+
+# Part A:
+
+```{r}
+dit_values <- diftrans(
+  pre_main = Beijing_pre,
+  post_main = Beijing_post,
+  pre_control = Tianjin_pre,
+  post_control = Tianjin_post,
+  var = MSRP,
+  bandwidth_seq = seq(0, 50000, by = 1000),
+  conservative = TRUE
+)
+
+dit_values
+```
+
+# Part B:
+
+```{r}
+placebo_Beijing_1 <- data.frame(
+  MSRP = Beijing_pre$MSRP,
+  count = rmultinom(
+    n = 1,
+    size = sum(Beijing_pre$count),
+    prob = Beijing_pre$count
+  )
+)
+```
+
+# Part C:
+
+```{r}
+placebo_Beijing_2 <- data.frame(
+  MSRP = Beijing_pre$MSRP,
+  count = rmultinom(
+    n = 1,
+    size = sum(Beijing_post$count),
+    prob = Beijing_pre$count
+  )
+)
+```
+
+# Part D:
+
+```{r}
+placebo_Tianjin_1 <- data.frame(
+  MSRP = Tianjin_pre$MSRP,
+  count = rmultinom(
+    n = 1,
+    size = sum(Tianjin_pre$count),
+    prob = Tianjin_pre$count
+  )
+)
+```
+
+# Part E:
+
+```{r}
+placebo_Tianjin_2 <- data.frame(
+  MSRP = Tianjin_pre$MSRP,
+  count = rmultinom(
+    n = 1,
+    size = sum(Tianjin_post$count),
+    prob = Tianjin_pre$count
+  )
+)
+```
+
+# Part F:
+
+```{r}
+dit_values_new <- diftrans(
+  pre_main = placebo_Beijing_1,
+  post_main = placebo_Beijing_2,
+  pre_control = placebo_Tianjin_1,
+  post_control = placebo_Tianjin_2,
+  var = MSRP,
+  bandwidth_seq = seq(0, 50000, by = 1000),
+  conservative = TRUE
+)
+
+dit_values_new
+```
+
+# Part G:
+
+```{r}
+ggplot(dit_values_new, aes(x = bandwidth, y = abs(diff))) +
+  geom_line(color = "red") +
+  labs(
+    x = "Bandwidth",
+    y = "Absolute Value of the placebo differences-in-transports estimator",
+    title = "Absolute value of Placebo Differences-in-Transports estimator by Bandwidth"
+  ) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+# Part H:
+
+```{r}
+threshold <- 0.0005
+
+benchmark_test_2 <- which(abs(dit_values_new$diff) < threshold)
+
+extract_values_2 <- dit_values_new$bandwidth[benchmark_test_2]
+
+print(extract_values_2)
+```
+
+# Part I
+
+```{r}
+extract_values_2 <- as.data.frame(extract_values_2)
+
+names(extract_values_2)[1] <- "bandwidth"
+
+largest_diff <- left_join(extract_values_2, dit_values_new, by = "bandwidth")
+
+largest_diff %>%
+  select(bandwidth, diff) %>%
+  arrange(desc(abs(diff)))
+```
+
+Among all the values of d that we found in the previous step, the one 
+that yielded the largest value for the placebo differences-in-transports
+estimator is bandwidth = 6000, with a diff = 4.974995e-04. This is the actual 
+difference-in-transports estimator. 
+
+## END

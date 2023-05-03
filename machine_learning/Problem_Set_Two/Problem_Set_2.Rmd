@@ -1,0 +1,736 @@
+---
+title: "Problem_Set_2"
+author: "Sief Salameh"
+date: "4/16/2023"
+output: 
+  pdf_document:
+    latex_engine: xelatex
+---
+
+## Load Libraries
+
+```{r}
+library(plyr)
+
+library(tidyverse)
+
+library(mgcv)
+
+library(wooldridge)
+
+library(boot)
+```
+
+## Question One:
+
+```{r}
+set.seed(1)
+
+# Defining the true coefficients and functions
+
+beta_0 <- 0
+beta_1 <- 1
+beta_2 <- 2
+f1 <- function(x) x
+f2 <- function(x) x^2
+
+# Simulate the data according to true model
+
+n1 <- 1000
+x1 <- rnorm(n1)
+x2 <- rnorm(n1)
+y1 <- beta_0 + f1(x1) * beta_1 + f2(x2) * beta_2 + rnorm(n1)
+
+# Fitting the true model
+
+true_model <- gam(y1 ~ s(x1) + s(x2))
+
+# Fitting the linear model
+
+linear_model <- lm(y1 ~ x1 + x2)
+
+# Plotting the residual plot and QQ plot for the linear model
+
+par(mfrow = c(1, 2))
+
+plot(linear_model, which = c(1, 2))
+
+# Calculating the Cook's distance for each observation
+
+cooks_dis <- cooks.distance(linear_model)
+
+plot(cooks_dis, pch = 20, main = "Cook's distance")
+
+abline(h = 4 / n1, col = "blue")
+
+```
+
+The estimated model is not a good fit because it assumes that the regression 
+is linear. However, based on the plots that I produced, it indicates that the 
+the true model does not exhibit a linear relationship. Since B2 > B1,  
+the coefficient is likely exponential.
+
+The residual plot that I created displays the standardized residuals vs. 
+the fitted values in the linear regression model. The standardized residuals
+compute the difference between the observed response value and the predicted 
+response value. The residuals are divided by the estimated standard 
+deviation of the error term. On the other hand, the fitted values are the 
+predicted values of the response variable based on the linear regression 
+model.
+
+Theoretically, we expect to see the following conditions in a well-fitted 
+linear regression model:
+
+1) The residuals should be symmetrically distributed around 0, with no 
+systematic patterns.
+2) The residuals should have constant variance across the range of 
+the fitted values (homoscedasticity).
+3) The residuals should be independent of the fitted values and the predictor variables.
+
+In the plots I created from the model, we can see that the majority of the  
+residuals are concentrated around 0, but there is significant distribution
+above 0. Suggesting that the linear regression model is not well-fitted in 
+terms of the mean of the response variable. Further, the plot shows a curved 
+pattern in the residuals, indicating that the assumption of linearity may not 
+hold true. Lastly, the residuals seem to have increasing variance as the 
+fitted values increase, which suggests that the assumption of 
+homoscedasticity may also be violated. In total, these discrepancies tell us 
+that the linear regression model may not be the best model for representing 
+the true relationship between the predictors and the response variables. 
+
+## CITATIONS: 
+
+https://sphweb.bumc.bu.edu/otlt/MPH-Modules/BS/R/R5_Correlation-Regression/R5_Correlation-Regression7.html
+
+https://www.sciencedirect.com/topics/mathematics/regression-diagnostics#:~:text=Regression%20diagnostics%20is%20the%20part,consistent%20with%20the%20recorded%20data.
+
+## Question Two:
+
+```{r}
+data(catholic)
+attach(catholic)
+
+female <- as.factor(female)
+gender <- revalue(female, c("1" = "female", "0" = "male"))
+
+hsgrad <- as.factor(hsgrad)
+hs <- revalue(hsgrad, c("1" = "highschool", "0" = "no_highschool"))
+
+```
+
+## Part A:
+
+```{r}
+model_a <- lm(read12 ~ gender, data = catholic)
+
+summary(model_a)
+
+```
+
+Interpreting this model, the coefficient intercept tells us that the reading 
+score for individuals who are male, holding all the other variables constant,
+is equal to 50.8870. This means that if an individual identified as a female, 
+we can predict that their reading score will increase by 1.7114 points 
+(ceteris paribus). This coefficient estimate is statistically significant at 
+the lowest significance/ alpha level of .001. The alpha level represents the 
+probability of rejecting the null hypothesis when the null hypothesis is true 
+(type 1 error). In this case, we can reject the null hypothesis that
+being female has no influence over reading scores.   
+
+However, the multiple R-squared value is 0.008264, which means that only 
+about 0.8% of the variance in reading scores is explained by the female 
+gender alone. This means that the linear relationship between the female 
+gender alone and reading scores is not very strong, and that other factors or 
+covariates not included in this model are likely to have a greater influence 
+on reading scores.
+
+## Part B:
+
+```{r}
+model_b <- lm(read12 ~ gender - 1, data = catholic)
+
+summary(model_b)
+
+```
+
+Interpreting this model, the coefficient estimate for males tells us that the 
+reading score for individuals who are male, holding all the other variables 
+constant is equal to 50.8870. This means that if an individual identified as 
+a male, we can predict that their reading score will be 50.8870. This 
+coefficient estimate is statistically significant at the lowest significance/ 
+alpha level of .001. The alpha level represents the probability of rejecting
+the null hypothesis when the null hypothesis is true (type 1 error). 
+
+Likewise, the coefficient estimate for females tells us that the 
+reading score for individuals who are female, holding all the other variables 
+constant is equal to 52.5984. This means that if an individual identified as 
+a female, we can predict that their reading score will be 52.5984. This 
+coefficient estimate is statistically significant at the lowest significance/ 
+alpha level of .001. In this model, we can reject the null hypothesis that 
+being male or female has no effect on reading scores.
+
+The multiple R-squared value is equal to .9683, which means approximately 97% 
+of the variance in reading scores is explained by the female and male gender 
+covariates. This means that the linear relationship between female and 
+male genders and reading scores is very strong, and that other factors or 
+covariates not included in this model are likely not to have a greater 
+influence on reading scores.
+
+## Part C:
+
+```{r}
+model_c <- lm(read12 ~ gender*hs, data = catholic)
+
+summary(model_c)
+
+```
+
+Interpreting this model, the coefficient intercept tells us that if an 
+individual identified as a male with no high school diploma, then their 
+predicted reading score will be equal to 44.2852. The coefficient intercept 
+is statistically significant at the lowest significance/ alpha level of .001. 
+The alpha level represents the probability of rejecting the null hypothesis 
+when the null hypothesis is true (type 1 error).
+
+Further, the coefficient estimate for genderfemale tells us that if an 
+individual identified as a female with no high school diploma, then we can
+predict that their reading score will increase by .2790 points holding all 
+the other variables constant. The coefficient estimate is not statistically 
+significant at any of the significance/ alpha levels.
+
+The coefficient estimate for hshighschool tells us that if an 
+individual identified as a male with a high school diploma, then we can
+predict that their reading score will increase by 6.8576 points holding all 
+the other variables constant. This coefficient estimate is statistically 
+significant at the lowest significance/ alpha level of .001.
+
+Lastly, the interaction term between gender and highschool tells us that if 
+an individual identified as a female and had a high school diploma, then we 
+can predict that their reading scores will increase by 1.5049 points. This coefficient estimate is not statistically significant at any of the
+significance/ alpha levels.
+
+In this model, we can reject the null hypothesis that having a highschool 
+diploma while being male has no effect on reading scores. However, we fail
+to reject the null hypothesis that being female with no high school diploma 
+has an effect on reading scores. Also we fail to reject the null hypothesis
+that being female with a highschool diploma has no effect on reading scores.
+
+The multiple R-squared value in this case is equal to  0.0508, which means 
+that only about 5% of the variance in reading scores is explained by the 
+female gender and highschool diploma variables. This means that the linear 
+relationship between the variables - female gender, highschool diploma, and 
+reading scores is not very strong. Other factors or covariates not included 
+in this model are likely to have a greater influence on reading scores.
+
+## Part D:
+
+```{r}
+model_d <- lm(read12 ~ gender * lfaminc, data = catholic)
+
+summary(model_d)
+
+```
+
+Interpreting this model, the coefficient intercept tells us that if an 
+individual identified as a male with no family log income, then their 
+predicted reading score will be equal to 21.6426. The coefficient intercept 
+is statistically significant at the lowest significance/ alpha level of .001. 
+The alpha level represents the probability of rejecting the null hypothesis 
+when the null hypothesis is true (type 1 error).
+
+Further, the coefficient estimate for genderfemale tells us that if an 
+individual identified as a female with no family log income, then we can
+predict that their reading score will decrease by 3.6048 points holding all 
+the other variables constant. The coefficient estimate is not statistically 
+significant at any of the significance/ alpha levels.
+
+The coefficient estimate for lfaminc tells us that if an 
+individual identified as a male, then we can predict that their reading score 
+will increase by 2.8149 points for every unit increase in family log income 
+holding all the other variables constant. This coefficient estimate is 
+statistically significant at the lowest significance/ alpha level of .001.
+
+Lastly, the interaction term between gender and family income tells us that 
+if an individual identified as a female, then we can predict that their 
+reading scores will increase by .5339 points for every unit increase in 
+family log income holding all the other variables constant. This 
+coefficient estimate is statistically significant at the .05 significance/ 
+alpha level.
+
+In this model, we can reject the null hypothesis that increasing family
+income while being male has no effect on reading scores. However, we fail
+to reject the null hypothesis that being female with no family income
+has an effect on reading scores. Further, we can reject the null 
+hypothesis at the 95% confidence interval that being female and increasing 
+family income has no effect on reading scores.
+
+The multiple R-squared value in this case is equal to  0.07747, which means 
+that only about 7% of the variance in reading scores is explained by the 
+female gender and log family income variables. This means that the linear 
+relationship between the variables - female gender, log family income, and 
+reading scores is not very strong. Other factors or covariates not included 
+in this model are likely to have a greater influence on reading scores.
+
+## Text Book Questions 
+
+## Chapter Five Question Two
+
+## Part A:
+
+The probability that the first bootstrap observation is not the jth 
+observation from the original sample is 1 - 1/n. 
+Since we are sampling with replacement, the probability of selecting the jth 
+observation from the original sample on a single draw is 1/n. Therefore, the 
+probability of not selecting the jth observation on a single draw is 1 - 1/n.
+
+Each bootstrap observation is randomly drawn with replacement from the 
+original sample. Therefore, the probability of the first bootstrap 
+observation not being the jth observation from the original sample is the 
+same as the probability of any bootstrap observation not being the jth 
+observation from the original sample, which is equal to the probability of 
+selecting any observation other than the jth observation on a single draw. The 
+probability of the first bootstrap observation not being the jth observation 
+from the original sample is the product of the probabilities that each of the 
+n bootstrap observations is not the jth observation from the original sample, 
+which simplifies to (1 - 1/n)^n.
+
+This probability approaches 1/e as n approaches infinity. Therefore, for 
+large n, the probability that the first bootstrap observation is not the jth 
+observation from the original sample is approximately 1 - 1/n.
+
+## CITATIONS:
+
+https://machinelearningmastery.com/a-gentle-introduction-to-the-bootstrap-method/#:~:text=The%20bootstrap%20method%20is%20a%20statistical%20technique%20for%20estimating%20quantities,after%20they%20have%20been%20chosen.
+
+https://towardsdatascience.com/an-introduction-to-the-bootstrap-method-58bcb51b4d60
+
+## Part B:
+
+The probability that the second bootstrap observation is not the jth 
+observation from the original sample is also 1 - 1/n. This is because the 
+first and second bootstrap observations are drawn independently from each
+other, with replacement. Which means it does not matter if the bootstrap 
+observation was the first drawn, second drawn, or tenth drawn. The 
+probability of selecting the jth  observation from the original sample on a 
+single draw is always 1/n. Therefore, the probability of not selecting the 
+jth observation on a single draw will also always be 1 - 1/n. The probability 
+that both observations are not the jth observation from the original sample 
+is the same as the product of their individual probabilities - that each of 
+the n bootstrap observations is not the jth observation from the original 
+sample. Thus, this simplifies to (1 - 1/n)^n.
+
+## Part C:
+
+The probability that the jth observation is not in the bootstrap sample is 
+also equal to the probability that none of the n bootstrap observations is 
+the jth observation from the original sample.
+
+As I have shown earlier, the probability that any single bootstrap 
+observation is not the jth observation from the original sample is 1 - 1/n. 
+Therefore, the probability that none of the n bootstrap observations is the 
+jth observation from the original sample is the same as the product of the 
+probabilities that each of the n bootstrap observations is not the 
+jth observation from the original sample. Mathematically, this is shown by
+the following equation ->
+
+(1 - 1/n) * (1 - 1/n) * ... * (1 - 1/n) * (n times)
+
+Simplified, this becomes ->
+
+(1 - 1/n)^n
+
+## Part D: 
+
+Since we are sampling with replacement, the probability of selecting the jth 
+observation from the original sample on a single draw is -> (1/5). Therefore, 
+the probability of not selecting the jth observation on a single draw is ->
+(1 - 1/5).
+
+Assuming that we take n = 5 bootstrap samples, the probability that the jth 
+observation is not selected in any of the bootstrap samples is:
+(1 - 1/5)^5 = 0.32768
+
+Therefore, the probability that the jth observation is in at least one of the 
+bootstrap samples is:
+
+(1 - 0.32768) = 0.67232 or 67.23%
+
+## Part E:
+
+Since we are sampling with replacement, the probability of selecting the jth 
+observation from the original sample on a single draw is -> (1/100). 
+Therefore, the probability of not selecting the jth observation on a single 
+draw is -> (1 - 1/100).
+
+Assuming that we take n = 100 bootstrap samples, the probability that the jth 
+observation is not selected in any of the bootstrap samples is:
+(1 - 1/100)^100 = 0.366
+
+Therefore, the probability that the jth observation is in at least one of the 
+bootstrap samples is:
+
+(1 - 0.366) = 0.634 or 63.4%
+
+## Part F:
+
+Since we are sampling with replacement, the probability of selecting the jth 
+observation from the original sample on a single draw is -> (1/10,000). 
+Therefore, the probability of not selecting the jth observation on a single 
+draw is -> (1 - 1/10,000).
+
+Assuming that we take n = 10,000 bootstrap samples, the probability that the 
+jth observation is not selected in any of the bootstrap samples is:
+(1 - 1/10,000)^10,000 = 0.3679
+
+Therefore, the probability that the jth observation is in at least one of the 
+bootstrap samples is:
+
+(1 - 0.3679) = 0.6321 or 63.21%
+
+## Part G:
+
+```{r}
+prob <- numeric(100000)
+
+for (n in 1:100000) {
+  prob[n] <- 1 - (1 - 1 / n)^n
+}
+
+plot(prob, xlab = "n observations", ylab = "Probability")
+
+```
+
+The plot shows that as we increase n observations, the probability that the 
+jth observation is in the bootstrap sample becomes closer to the mathematical 
+limit we set at 1 - 1/n. In this case, it is equal to 0.6321 or 63.21%. This 
+plot confirms that the probability approaches 1/e as n approaches infinity.
+
+## Part H:
+
+```{r}
+store <- rep(NA, 10000)
+for (i in 1:10000) {
+  store[i] <- sum(sample(1:100, rep = TRUE) == 4) > 0
+}
+
+mean(store)
+
+```
+
+The following code creates 10,000 bootstrap samples that each have n = 100
+observations. The code then indicates if the 4th observation is contained in 
+each of those samples. The proportion of samples that do contain the 4th 
+observation is then computed by calculating the mean of the resulting
+samples. 
+
+The output of the code tells us that the probability of the 4th observation 
+being included in a bootstrap sample of size n = 100, is approximately 0.63
+or 63.4%. This represents the proportion of bootstrap samples that do contain 
+the 4th observation. Conceptually, there is a significantly high probability 
+that the 4th observation is included in a bootstrap sample size of 100.
+
+## Chapter Five Question Three
+
+## Part A:
+
+The K-fold cross-validation involves dividing the data into k subsets or 
+folds of roughly the same size, then training the model on k-1 of the folds
+and evaluating the model on the remaining fold. This process is repeated 
+k times, with each fold used exactly once as the validation data.
+
+The following steps outline how the k-fold cross-validation is implemented -
+
+1) Split the data into k roughly equal-sized folds.
+2) For each fold, train the model on the remaining k-1 folds.
+3) Evaluate the model on the validation fold and record the evaluation 
+metric through the mean squared error.
+4) Repeat steps 2 and 3 for each fold.
+5) Calculate the average of the evaluation metric (MSE) across all 
+folds. This will give us an estimate of the model's performance on unseen/
+testing data.
+
+## CITATION: 
+
+https://machinelearningmastery.com/k-fold-cross-validation/
+
+## Part Bi:
+
+Advantages and disadvantages of k-fold cross-validation using the 
+validation set approach
+
+Advantages
+
+The K-fold cross-validation is a more reliable estimate of the model's 
+performance because it utilizes multiple validation sets instead of one. 
+The validation approach also allows the entire dataset to be used as a 
+training set, rather than splitting the data into in-sample and out of sample 
+data sets. Lastly, this method provides a way to evaluate the variance of the 
+model's performance across different subsets of the data.
+
+Disadvantages
+
+The validation approach requires more time and programming tools since the 
+model needs to be trained and evaluated k times. Additionally, the variance 
+that is estimated through the validation set approach can potentially be 
+higher. 
+
+## Part Bii:
+
+Advantages and disadvantages of k-fold cross-validation using the LOOCV
+
+Advantages
+
+The K-fold cross-validation is less time consuming and more resource friendly  
+through the LOOCV, especially for larger datasets It is also less sensitive 
+to outliers because each fold is trained on a different subset of the data.
+
+Disadvantages
+
+K-fold cross-validation through the LOOCV might underestimate the bias of the 
+model because each fold is trained on a smaller subset of the data rather 
+than the full dataset. Also the choice of k can impact the performance of the 
+model because it might not be clear which value of k to choose from.
+
+## Chapter Five Question Eight:
+
+## Part A:
+
+```{r}
+set.seed(123)
+
+a <- rnorm(100)
+b <- a - 2 * a^2 + rnorm(100)
+
+```
+
+In the given data set, n = 100, which represents the total number of 
+observations or data points.
+
+Also in the data set, p = 2, which represents the number of predictor 
+variables used to generate the response variable.
+
+The model used to generate the data in the equation follows this format -
+
+Y = X − 2X^2 + ε
+
+The second coefficient estimate 2X^2 uses a quadratic term, indicating a 
+nonlinear relationship between x and y. 
+
+## Part B: 
+
+```{r}
+plot(a, b, main = "Scatterplot of X against Y", xlab = "X", ylab = "Y")
+
+```
+
+The scatterplot indicates a non-linear relationship between a and b. The  
+relationship is not strictly linear, given that we can observe a curve-like 
+pattern in the scatterplot.
+
+Furthermore, we can also see that the points are spread out and do not form a 
+concentrated cluster around the curve. This suggests that there might be some 
+variability or noise in the relationship between a and b.
+
+## Part C:
+
+```{r}
+set.seed(123)
+
+df_PartC <- data.frame(a, b)
+
+# Part i -> Y=β0+β1X+ε
+
+cv_errors_1 <- glm(b ~ a)
+cv.glm(df_PartC, cv_errors_1)$delta[1]
+
+# Part ii -> Y=β0+β1X+β2X^2+ε
+
+cv_errors_2 <- glm(b ~ poly(a, 2))
+cv.glm(df_PartC, cv_errors_2)$delta[1]
+
+# Part iii -> Y=β0+β1X+β2X^2+β3X^3+ε
+
+cv_errors_3 <- glm(b ~ poly(a, 3))
+cv.glm(df_PartC, cv_errors_3)$delta[1]
+
+# Part iv -> Y=β0+β1X+β2X^2+β3X^3+β4X^4+ε
+
+cv_errors_4 <- glm(b ~ poly(a, 4))
+cv.glm(df_PartC, cv_errors_4)$delta[1]
+
+```
+
+## Part D:
+
+```{r}
+set.seed(000)
+
+df_PartD <- data.frame(a, b)
+
+# Part i -> Y=β0+β1X+ε
+
+cv_errors_1 <- glm(b ~ a)
+cv.glm(df_PartD, cv_errors_1)$delta[1]
+
+# Part ii -> Y=β0+β1X+β2X^2+ε
+
+cv_errors_2 <- glm(b ~ poly(a, 2))
+cv.glm(df_PartD, cv_errors_2)$delta[1]
+
+# Part iii -> Y=β0+β1X+β2X^2+β3X^3+ε
+
+cv_errors_3 <- glm(b ~ poly(a, 3))
+cv.glm(df_PartD, cv_errors_3)$delta[1]
+
+# Part iv -> Y=β0+β1X+β2X^2+β3X^3+β4X^4+ε
+
+cv_errors_4 <- glm(b ~ poly(a, 4))
+cv.glm(df_PartD, cv_errors_4)$delta[1]
+
+```
+
+Yes the results are the same when we use a different seed because the LOOCV
+method evaluates n folds of a single observation. As the sample size 
+increases, the data set becomes less dependent on the specific values 
+generated by the random seed. Therefore, for a large enough sample size, 
+the LOOCV results should produce relatively identical results across
+different random seeds.  
+
+## CITATION: 
+
+https://www.statology.org/leave-one-out-cross-validation/
+
+## Part E: 
+
+The second model in Part C, Y=β0+β1X+β2X^2+, had the smallest LOOCV error.
+This was expected because the relationship between a and b is not a linear 
+relationship, but instead a quadratic relationship. This was demonstrated in 
+the previous plot, which explains why model two had the lowest LOOCV.
+
+## Part F: 
+
+```{r}
+summary(cv_errors_4)
+```
+
+Based on the p-values of the models, it shows that model one with the linear
+relationship, and model two with the quadratic relationship were 
+statistically significant at the lowest significance/ alpha level of .001.
+However, the cubic and 4th power models were not statistically significant
+at any of the significance/ alpha levels. This makes sense because we
+previously said that model two had the lowest LOOCV error amongst all the 
+models.
+
+## Chapter Five Question Nine
+
+## Part A:
+
+```{r}
+library(MASS)
+attach(Boston)
+
+mu_hat <- mean(medv)
+
+mu_hat
+
+```
+
+## Part B:
+
+```{r}
+std_error <- sd(medv) / sqrt(dim(Boston)[1])
+
+std_error
+
+```
+
+The standard error tells us the precision of the sample mean as an estimate 
+of the population mean. It represents the average amount of sampling error 
+that can be expected in the sample mean due to random sampling fluctuations. 
+The standard error decreases as the sample size increases, indicating that 
+larger samples provide more precise estimates of the population mean.
+
+## Part C:
+
+```{r}
+set.seed(111)
+
+boot_std <- function(data, index) {
+  mu <- mean(data[index])
+  return(mu)
+}
+boot(medv, boot_std, 506)
+
+```
+
+Using the same number of observations in the Boston data set, the boot strap
+estimated standard error is very close to the estimated standard error of the
+population mean. .4089 vs .4019
+
+## Part D:
+
+```{r}
+t.test(Boston$medv)
+
+CI_mu_estimate <- c(22.53 - 2 * 0.4019, 22.53 + 2 * 0.4019)
+
+CI_mu_estimate
+```
+
+The mean of medv from the t.test(Boston$medv) equals 22.53. This falls within 
+the range computed by the 95% confidence interval using the bootstrap 
+estimate from Part C - which equals [21.72 - 23.33].  
+
+## Part E:
+
+```{r}
+median_estimate <- median(medv)
+
+median_estimate
+
+```
+
+## Part F: 
+
+```{r}
+boot_median <- function(data, index) {
+  mu <- median(data[index])
+  return(mu)
+}
+
+boot(medv, boot_median, 506)
+```
+
+The estimate of the median using the bootstrap method is equal to 21.2. 
+This is the same value as the median computed in Part E. Likewise, the 
+bootstrap method gives us a standard error estimate equal to .3814. The 
+standard error is small compared to the estimate value of 21.2.
+
+## Part G:
+
+```{r}
+tenth_percentile <- quantile(medv, c(0.1))
+
+tenth_percentile
+
+```
+
+## Part H:
+
+```{r}
+boot_tenth <- function(data, index) {
+  mu <- quantile(data[index], c(0.1))
+  return(mu)
+}
+
+boot(medv, boot_tenth, 506)
+
+```
+
+Using the bootstrap method, we get an estimated value of 12.75 which is the 
+same value we computed in Part G. Also using the bootstrap method to estimate 
+the standard error of the tenth percentile, we get a value equal to .4939.
+The standard error is small compared to the estimated value of 12.75.
+
+
+## END
