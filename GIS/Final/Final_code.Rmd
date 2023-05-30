@@ -1,0 +1,51 @@
+---
+title: "GIS_Final"
+author: "Sief Salameh"
+date: "5/25/2023"
+output: pdf_document
+---
+```{r}
+library(tidyverse)
+library(sf)
+library(sf)
+library(dplyr)
+library(ggplot2)
+
+setwd("~/Downloads/GIS/Final/Cleveland_FinalExam")
+
+cleveland <- st_read("cleveland.shp")
+
+House.Pts <- st_read("clev_sls_154_core.shp")
+
+str(House.Pts)
+House.Pts$sale_price <- as.numeric(House.Pts$sale_price)
+
+House.Pts <- House.Pts %>% rename("Price" = "sale_price")
+
+```
+
+
+```{r}
+if (!st_crs(cleveland) == st_crs(House.Pts)) {
+  House.Pts <- st_transform(House.Pts, st_crs(cleveland))
+}
+
+points_in_polygons <- st_intersection(House.Pts, cleveland)
+
+aggregated_data <- aggregate(points_in_polygons$Price, by = list(TRACTCE = points_in_polygons$TRACTCE), FUN = mean)
+
+colnames(aggregated_data) <- c("TRACTCE", "Price")
+
+census_with_prices <- merge(cleveland, aggregated_data, by = "TRACTCE")
+
+ggplot() +
+  geom_sf(data = cleveland, fill = "lightgray", color = "gray", size = 0.2) +
+  geom_sf(data = census_with_prices, aes(fill = Price), color = "white", size = 0.2) +
+  scale_fill_viridis_c(option = "C", name = "Housing Price") +
+  labs(title = "Spatial Pattern of Housing Values in Cleveland") +
+  theme_minimal() +
+  guides(fill = guide_legend(title = "Mean Housing Price", nrow = 1))
+
+
+```
+

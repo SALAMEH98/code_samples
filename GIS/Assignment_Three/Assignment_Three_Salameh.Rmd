@@ -1,0 +1,72 @@
+---
+title: "Assignment_3_Salameh"
+author: "Sief Salameh"
+date: "5/14/2023"
+output: pdf_document
+---
+```{r, message=FALSE}
+library(sf)
+library(tmap)
+library(leaflet)
+library(raster)
+library(adehabitatHR)
+library(tidyverse)
+library(readxl)
+library(paletteer)
+
+setwd("~/Downloads/GIS/Assignment_Three")
+
+```
+
+```{r}
+chicago_areas <- st_read("data/geo_export_1ff870e8-7669-47e0-be76-f6396bcac18e.shp")
+
+chicago_areas <- chicago_areas[, c(6, 10)]
+
+head(chicago_areas)
+
+affordable_housing <- read.csv("Affordable_Rental_Housing_Developments.csv")
+
+affordable_housing <- affordable_housing[, c(3, 9, 12, 13, 14)]
+
+head(affordable_housing)
+
+housing.points <- st_as_sf(affordable_housing,
+  coords = c("Longitude", "Latitude"), crs = 4326
+)
+
+housing.points <- housing.points[, c(1, 2, 4)]
+
+housing.points$Property.Type <- gsub(
+  "\\s.*|/.*", "",
+  housing.points$Property.Type
+)
+
+housing.points.sp <- sf:::as_Spatial(housing.points$geometry)
+
+kde.output <- kernelUD(housing.points.sp, h = "href", grid = 1000)
+
+plot(kde.output)
+
+range75 <- getverticeshr(kde.output, percent = 75)
+range50 <- getverticeshr(kde.output, percent = 50)
+range25 <- getverticeshr(kde.output, percent = 25)
+range05 <- getverticeshr(kde.output, percent = 05)
+
+tm_shape(chicago_areas) +
+  tm_fill(col = "#000000") +
+  tm_borders(alpha = 0.9, col = "white") +
+  tm_shape(housing.points) +
+  tm_dots(col = factor("Property.Type"), size = "Units", palette = "Set1") +
+  tm_shape(range75) + tm_borders(alpha = 1, col = "#2c7bb6", lwd = 2) +
+  tm_fill(alpha = .2, col = "#2c7bb6") +
+  tm_shape(range50) + tm_borders(alpha = 1, col = "#92c5de", lwd = 2) +
+  tm_fill(alpha = .2, col = "#92c5de") +
+  tm_shape(range25) + tm_borders(alpha = 1, col = "#d6604d", lwd = 2) +
+  tm_fill(alpha = .2, col = "#d6604d") +
+  tm_shape(range05) + tm_borders(alpha = 1, col = "#b2182b", lwd = 2) +
+  tm_fill(alpha = .2, col = "#b2182b") +
+  tm_layout(frame = TRUE) +
+  tmap_options(check.and.fix = TRUE)
+```
+

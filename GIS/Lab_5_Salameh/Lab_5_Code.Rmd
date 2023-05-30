@@ -1,0 +1,213 @@
+---
+title: "Lab_5_Salameh"
+author: "Sief Salameh"
+date: "4/22/2023"
+output: pdf_document
+---
+
+## Load Libraries
+
+```{r}
+setwd("~/Downloads/GIS/Lab_5_Salameh/Lab5_data")
+
+library(sf)
+library(tmap)
+library(leaflet)
+library(data.table)
+library(tidyverse)
+library(RColorBrewer)
+```
+
+## Cleaning & Loading the Data
+
+# Los Angeles
+
+```{r}
+LA_crimes <- fread("LAPD2015_Violent.csv", header = T)
+head(LA_crimes)
+
+unique(LA_crimes$"Crime Code Description")
+
+LA_crimes_df <- as.data.frame(LA_crimes)
+
+homicides <- subset(
+  LA_crimes_df,
+  LA_crimes_df$"Crime Code Description" == "CRIMINAL HOMICIDE"
+)
+
+LA_crimes_hom <- rbind(homicides)
+
+head(homicides)
+
+# write.csv(LA_crimes_hom, "LA_crimes_hom.csv")
+
+```
+
+## Convert CSV to Points
+
+```{r}
+glimpse(LA_crimes_hom[, c("longitude", "latitude")])
+
+str(LA_crimes_hom[, c("longitude", "latitude")])
+
+LA_crimes_hom$latitude <- as.numeric(LA_crimes_hom$latitude)
+LA_crimes_hom$longitude <- as.numeric(LA_crimes_hom$longitude)
+
+LA_crimes_pts <- st_as_sf(LA_crimes_hom,
+  coords = c("longitude", "latitude"), crs = 4326
+)
+
+LA_crimes_hom_na <- subset(LA_crimes_hom, is.na(LA_crimes_hom[, c("longitude", "latitude")]))
+
+glimpse(LA_crimes_hom_na)
+
+LA_crimes_hom2 <- na.omit(LA_crimes_hom[, c("DR Number", "longitude", "latitude")])
+
+str(LA_crimes_hom2)
+
+LA_crimes_pts <- st_as_sf(LA_crimes_hom2,
+  coords = c("longitude", "latitude"), crs = 4326
+)
+
+plot(LA_crimes_pts)
+
+# st_write(LA_crimes_pts,"LA_crimes_hom.shp")
+
+```
+
+# New York
+
+```{r}
+NY_crimes <- fread("NYPD2015_Violent.csv", header = T)
+head(NY_crimes)
+
+unique(NY_crimes$"OFNS_DESC")
+
+NY_crimes_df <- as.data.frame(NY_crimes)
+
+homicides_NY <- subset(
+  NY_crimes_df,
+  NY_crimes_df$"OFNS_DESC" == "MURDER & NON-NEGL. MANSLAUGHTER"
+)
+
+NY_crimes_hom <- rbind(homicides_NY)
+
+head(homicides_NY)
+
+# write.csv(NY_crimes_hom, "NY_crimes_hom.csv")
+
+```
+
+```{r}
+glimpse(NY_crimes_hom[, c("Longitude", "Latitude")])
+
+str(NY_crimes_hom[, c("Longitude", "Latitude")])
+
+NY_crimes_hom$Latitude <- as.numeric(NY_crimes_hom$Latitude)
+NY_crimes_hom$Longitude <- as.numeric(NY_crimes_hom$Longitude)
+
+NY_crimes_pts <- st_as_sf(NY_crimes_hom,
+  coords = c("Longitude", "Latitude"), crs = 4326
+)
+
+NY_crimes_hom_na <- subset(NY_crimes_hom, is.na(NY_crimes_hom[, c("Longitude", "Latitude")]))
+
+glimpse(NY_crimes_hom_na)
+
+NY_crimes_hom2 <- na.omit(NY_crimes_hom[, c("Longitude", "Latitude")])
+
+str(NY_crimes_hom2)
+
+NY_crimes_pts <- st_as_sf(NY_crimes_hom2,
+  coords = c("Longitude", "Latitude"), crs = 4326
+)
+
+plot(NY_crimes_pts)
+
+# st_write(NY_crimes_pts,"NY_crimes_hom.shp")
+
+```
+
+## Load and Inspect Los Angeles
+
+```{r}
+LAcrimes <- LA_crimes_pts
+
+LAtracts <- st_read("LAC_Shape.shp")
+
+tm_shape(LAtracts) + tm_borders(alpha = 0.4) +
+  tm_shape(LA_crimes_pts) + tm_dots(size = 0.1, col = "red")
+
+st_crs(LAcrimes)
+
+st_crs(LAtracts)
+
+CRS.new <- st_crs(LAtracts)
+LAcrimes <- st_transform(LAcrimes, CRS.new)
+
+glimpse(LAcrimes)
+
+crime_in_tract <- st_join(LAcrimes, LAtracts, join = st_within)
+glimpse(crime_in_tract)
+
+crime_tract_count <- as.data.frame(table(crime_in_tract$TRACTCE10))
+glimpse(crime_tract_count)
+
+names(crime_tract_count) <- c("TRACTCE10", "CrimeCt")
+glimpse(crime_tract_count)
+
+LAtracts_new <- merge(LAtracts, crime_tract_count, by = "TRACTCE10")
+glimpse(LAtracts_new)
+
+tm_shape(LAtracts_new) + tm_fill("CrimeCt", n = 4, pal = "BuPu", title = "LA Homicides in 2015")
+
+# tmap_mode("view")
+
+tm_shape(LAtracts_new) + tm_fill("CrimeCt", n = 4, pal = "PuOr", title = "LA Homicides in 2015")
+
+# st_write(LAtracts_new,"LA_final.shp")
+```
+
+## Load and Inspect New York
+
+```{r}
+# tmap_mode("plot")
+
+NYcrimes <- NY_crimes_pts
+
+NYtracts <- st_read("NYC_Shape.shp")
+
+tm_shape(NYtracts) + tm_borders(alpha = 0.4) +
+  tm_shape(NY_crimes_pts) + tm_dots(size = 0.1, col = "red")
+
+st_crs(NYcrimes)
+
+st_crs(NYtracts)
+
+CRS.new2 <- st_crs(NYtracts)
+NYcrimes <- st_transform(NYcrimes, CRS.new2)
+
+glimpse(NYcrimes)
+
+crime_in_tract2 <- st_join(NYcrimes, NYtracts, join = st_within)
+glimpse(crime_in_tract2)
+
+crime_tract_count2 <- as.data.frame(table(crime_in_tract2$tractce))
+glimpse(crime_tract_count2)
+
+names(crime_tract_count2) <- c("tractce", "CrimeCt")
+glimpse(crime_tract_count2)
+
+NYtracts_new <- merge(NYtracts, crime_tract_count2, by = "tractce")
+glimpse(NYtracts_new)
+
+tm_shape(NYtracts_new) + tm_fill("CrimeCt", n = 4, pal = "BuPu", title = "NY Homicides in 2015")
+
+# tmap_mode("view")
+
+tm_shape(NYtracts_new) + tm_fill("CrimeCt", n = 4, pal = "PuOr", title = "NY Homicides in 2015")
+
+# st_write(NYtracts_new,"NY_final.shp")
+```
+
+

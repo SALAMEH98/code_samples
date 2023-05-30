@@ -1,0 +1,200 @@
+---
+title: "Lab_4_Code"
+author: "Sief Salameh"
+date: "4/16/2023"
+output: pdf_document
+---
+
+## Census Data Wrangling
+
+```{r}
+setwd("~/Downloads/GIS/Lab_4_Salameh/Lab4/data")
+
+library(tidyverse)
+
+library(sf)
+
+Census.Data <- read.csv("ACS_15_5YR_DP03.csv")
+
+County.Areas <- st_read("WV_Counties_Merged.shp")
+
+# glimpse(County.Areas)
+
+# head(Census.Data)
+
+dim(Census.Data)
+
+var <- c("GEO.id2","HC01_VC85","HC03_VC50")
+
+Census.Subset <- (Census.Data[var])
+
+glimpse(Census.Subset)
+
+names(Census.Subset)[2:3]<- c("MedInc15", "AgMnJb15")
+
+glimpse(Census.Subset)
+
+WV_county <- merge(County.Areas, Census.Subset, by.x="FIPSSTCO", by.y="GEO.id2")
+
+head(WV_county)
+```
+
+## Mapping in R
+
+```{r}
+library(tmap)
+
+library(RColorBrewer)
+
+# display.brewer.all()
+
+tm_shape(WV_county) + tm_fill("AgMnJb15")
+
+tm_shape(WV_county) + tm_fill("AgMnJb15", palette = "BrBG")
+
+tm_shape(WV_county) + tm_fill("AgMnJb15", palette = "-BrBG") +
+  tm_layout(legend.position = c(.8, 0), frame = FALSE)
+
+quantile_map <- tm_shape(WV_county) + 
+  tm_fill("AgMnJb15", style = "quantile", palette = "-BrBG")
+
+tm_shape(WV_county) +
+  tm_fill("AgMnJb15", style = "quantile", n = 7, palette = "-BrBG")
+
+tm_shape(WV_county) +
+  tm_fill("AgMnJb15",
+    style = "jenks",
+    n = 6, palette = "-BrBG",
+    legend.hist = TRUE
+  ) +
+  tm_layout(
+    legend.outside = TRUE,
+    legend.hist.width = 2
+  )
+
+# add borders
+
+tm_shape(WV_county) + 
+  tm_fill("AgMnJb15", style = "jenks", n=6, palette = "-BrBG") + 
+  tm_borders(alpha=.4) +
+  tm_layout(legend.position=c(.8,0), legend.height = 0.4, frame = FALSE)
+
+# north arrow
+
+tm_shape(WV_county) + tm_fill("AgMnJb15",
+  style = "jenks", n = 6,
+  palette = "-BrBG"
+) +
+  tm_borders(alpha = .4) +
+  tm_compass(text.size = 0.7, position = c("RIGHT", "TOP")) +
+  tm_layout(legend.position = c(.8, 0), legend.height = 0.4, frame = FALSE)
+
+# adds in legend outside the frame
+
+tm_shape(WV_county) + tm_fill("AgMnJb15",
+  style = "jenks",
+  palette = "-BrBG", title = "% Jobs High \n Risk Employment"
+) +
+  tm_borders(alpha = .4) +
+  tm_compass(text.size = 0.7, position = c("RIGHT", "TOP")) +
+  tm_layout(legend.title.size = 1, legend.outside = TRUE, legend.position = c("right", "bottom"), frame = FALSE)
+
+# ReMap
+
+BLSData <- tm_shape(WV_county) + tm_fill("AvEmp17", palette = "BuPu", style = "jenks", title = "Coal Mng Jobs") + 
+  tm_borders(alpha=.4) + 
+  tm_layout(legend.position = c(.7, 0), frame = FALSE)
+
+ACSData <- tm_shape(WV_county) + tm_fill("AgMnJb15", palette = "BuPu", style = "jenks", title = "High Risk Job %") + 
+  tm_borders(alpha=.4) + 
+  tm_layout(legend.position = c(.7, 0), frame = FALSE) 
+
+tmap_arrange(BLSData,ACSData)
+
+# Another Route:
+
+tm_shape(WV_county) +
+  tm_polygons(c("AvEmp17", "AgMnJb15"), 
+              style=c("jenks", "jenks"),
+              palette=list("BuPu", "BuPu"),
+              title=c("Coal Mng Jobs", "High Risk Jobs %")) +
+ 
+   #tm_layout(legend.position = c(0,.65), frame=FALSE) +
+  
+  tm_facets(ncol=2)
+
+```
+
+## Using a Census API
+
+```{r}
+library(tidyverse)
+library(tidycensus)
+options(tigris_use_cache = TRUE)
+
+# census_api_key("f08b90ee57af4bc62b5663fa9480340ae314a61c", install=TRUE, overwrite = TRUE)
+
+# ACS19var <- load_variables(2019, "acs5", cache = TRUE)
+# view(ACS19var)
+
+WV_county_medinc <- get_acs(geography = "county", 
+              variables = c(medincome = "B19013_001"), 
+              state = "WV", 
+              year = 2019)
+
+WV_county_medinc.sp <- get_acs(state = "WV", 
+                     geography = "county", 
+                     variables = "B19013_001", 
+                     geometry = TRUE)
+
+# head(WV_county_medinc.sp)
+
+WV_county_medinc.sp %>%
+  ggplot(aes(fill = estimate)) + 
+  geom_sf(color = NA) + 
+  scale_fill_viridis_c(option = "magma")
+
+tm_shape(WV_county_medinc.sp) + tm_fill("estimate", palette = "BuPu", title ="Median Income")
+
+WV_tracts_medinc.sp <- get_acs(state = "WV", 
+                     geography = "tract", 
+                     variables = "B19013_001", 
+                     geometry = TRUE)
+
+WV_tracts_medinc.sp %>%
+  ggplot(aes(fill = estimate)) + 
+  geom_sf(color = NA) + 
+  scale_fill_viridis_c(option = "magma")
+
+tm_shape(WV_tracts_medinc.sp) + 
+  tm_fill("estimate", style = "jenks", palette = "BuPu", title ="Median Income")
+```
+
+## Extract Data
+
+```{r}
+WV_county_mining.sp <- get_acs(state = "WV", 
+                     geography = "county", 
+                     variables = "B24031_002", 
+                     geometry = TRUE)
+
+WV_tracts_mining.sp <- get_acs(state = "WV", 
+                     geography = "tract", 
+                     variables = "B24031_002", 
+                     geometry = TRUE)
+
+WVCounties <- tm_shape(WV_county_mining.sp) + 
+  tm_fill("estimate", n=4, palette = "BuPu", style = "jenks", title = "High Risk Jobs") + 
+  tm_borders(alpha=.4) + 
+  tm_layout(legend.text.size = .8, legend.title.size = 1.0, legend.position = c("right", "bottom"), frame = FALSE)
+
+WVTracts <- tm_shape(WV_tracts_mining.sp) + tm_fill("estimate", n=4, palette = "BuPu", style = "jenks", title = "High Risk Jobs") + 
+  tm_borders(alpha=.4) + 
+  tm_layout(legend.text.size = .8, legend.title.size = 1.0, legend.position = c("right", "bottom"), frame = FALSE)
+
+tmap_arrange(WVCounties,WVTracts)
+```
+
+
+
+

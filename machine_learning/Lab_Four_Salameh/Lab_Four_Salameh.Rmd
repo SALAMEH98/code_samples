@@ -1,0 +1,474 @@
+---
+title: "Lab_Four_Salameh"
+author: "Sief Salameh"
+date: "5/20/2023"
+output:
+  word_document: default
+  pdf_document: default
+---
+```{r}
+library(tidyverse)
+library(e1071)
+
+setwd("~/Downloads/Machine_Learning/Lab_Four_Salameh")
+```
+
+# Section One: Exercise 1.1
+
+# Part A:
+
+The four kernels supported by svm include:
+
+1) Linear Kernel: The linear kernel is the simplest kernel and is used when the 
+data is linearly separable. It performs a linear transformation, projecting the 
+data points onto a higher-dimensional space. The linear kernel is defined as 
+K(x, y) = x * y.
+
+2) Polynomial Kernel: The polynomial kernel transforms the data into a higher-dimensional space using polynomial functions. It can capture non-linear relationships between the data points. The polynomial kernel is defined as
+K(x, y) = (α * x * y + c)^d, where α is a scaling factor, c is a constant, 
+and d is the degree of the polynomial.
+
+3) Radial Basis Function (RBF) Kernel: The RBF kernel is a popular choice in SVM because of its flexibility in capturing complex patterns. It transforms the data 
+into an infinite-dimensional space. The RBF is defined as 
+K(x, y) = exp(-γ * ||x - y||^2), where γ is a scaling factor that determines
+the influence of each training example.
+
+Sigmoid Kernel: The sigmoid kernel is another non-linear kernel that is 
+commonly used in SVM. It is inspired by neural networks and can handle 
+non-linear decision boundaries. The sigmoid kernel is defined as 
+K(x, y) = tanh(α * x * y + c), where α is a scaling factor and c is a constant.
+
+CITATION: https://towardsdatascience.com/svm-and-kernel-svm-fed02bef1200
+
+# Part B:
+
+Typically, the default value of the cost parameter is set to 1. 
+
+# Part C:
+
+In an SVM classification plot, the X's generally represent the support vectors. Support vectors are usually data points from the training set that lie closest 
+to the decision boundary (hyperplane) of the SVM classifier.
+
+Therefore, support vectors play a critical role in SVM as they determine the 
+position and orientation of the decision boundary. These points have the most influence on defining the boundary and separating the different classes.
+
+When plotting the decision boundary and the support vectors in a graph, the X's 
+tend to be located near the decision boundary and can provide insights into how 
+the SVM model makes its predictions. 
+
+# Section Two
+
+```{r}
+vote_df <- read.csv("vote_df.csv")
+
+work_df <- read.csv("work_df.csv")
+
+apply(vote_df, 2, class)
+
+apply(work_df, 2, class)
+
+vote_demo <- vote_df
+
+work_demo <- work_df
+
+vote_demo$prcitshp <- as.factor(vote_demo$prcitshp)
+
+work_demo$prcitshp <- as.factor(work_demo$prcitshp)
+
+str(vote_demo$prcitshp)
+
+str(work_demo$prcitshp)
+
+prcitshp_unique <- unique(c(vote_df$prcitshp, work_df$prcitshp))
+
+vote_df$prcitshp <- factor(vote_df$prcitshp, levels = prcitshp_unique)
+
+work_df$prcitshp <- factor(work_df$prcitshp, levels = prcitshp_unique)
+
+str(vote_df$prcitshp)
+
+str(work_df$prcitshp)
+```
+
+# Section Two: Exercise 2.1
+
+```{r}
+vote_demo <- vote_df
+
+work_demo <- work_df
+
+# pesex
+
+vote_demo$pesex <- as.factor(vote_demo$pesex)
+
+work_demo$pesex <- as.factor(work_demo$pesex)
+
+str(vote_demo$pesex)
+
+str(work_demo$pesex)
+
+pesex_unique <- unique(c(vote_df$pesex, work_df$pesex))
+
+vote_df$pesex <- factor(vote_df$pesex, levels = pesex_unique)
+
+work_df$pesex <- factor(work_df$pesex, levels = pesex_unique)
+
+str(vote_df$pesex)
+
+str(work_df$pesex)
+
+# ptdtrace
+
+vote_demo$ptdtrace <- as.factor(vote_demo$ptdtrace)
+
+work_demo$ptdtrace <- as.factor(work_demo$ptdtrace)
+
+str(vote_demo$ptdtrace)
+
+str(work_demo$ptdtrace)
+
+ptdtrace_unique <- unique(c(vote_df$ptdtrace, work_df$ptdtrace))
+
+vote_df$ptdtrace <- factor(vote_df$ptdtrace, levels = ptdtrace_unique)
+
+work_df$ptdtrace <- factor(work_df$ptdtrace, levels = ptdtrace_unique)
+
+str(vote_df$ptdtrace)
+
+str(work_df$ptdtrace)
+
+# pehspnon
+
+vote_demo$pehspnon <- as.factor(vote_demo$pehspnon)
+
+work_demo$pehspnon <- as.factor(work_demo$pehspnon)
+
+str(vote_demo$pehspnon)
+
+str(work_demo$pehspnon)
+
+pehspnon_unique <- unique(c(vote_df$pehspnon, work_df$pehspnon))
+
+vote_df$pehspnon <- factor(vote_df$pehspnon, levels = pehspnon_unique)
+
+work_df$pehspnon <- factor(work_df$pehspnon, levels = pehspnon_unique)
+
+str(vote_df$pehspnon)
+
+str(work_df$pehspnon)
+
+# peeduca
+
+vote_demo$peeduca <- as.factor(vote_demo$peeduca)
+
+work_demo$peeduca <- as.factor(work_demo$peeduca)
+
+str(vote_demo$peeduca)
+
+str(work_demo$peeduca)
+
+peeduca_unique <- unique(c(vote_df$peeduca, work_df$peeduca))
+
+vote_df$peeduca <- factor(vote_df$peeduca, levels = peeduca_unique)
+
+work_df$peeduca <- factor(work_df$peeduca, levels = peeduca_unique)
+
+str(vote_df$peeduca)
+
+str(work_df$peeduca)
+
+# prtage
+
+vote_df$prtage <- as.integer(vote_df$prtage)
+
+work_df$prtage <- as.integer(work_df$prtage)
+
+str(vote_df$prtage)
+
+str(work_df$prtage)
+
+# vote & work
+
+vote_df$vote <- as.factor(vote_df$vote)
+
+work_df$work <- as.factor(work_df$work)
+
+str(vote_df$vote)
+
+str(work_df$work)
+
+```
+
+# Section Two: Exercise 2.2
+
+```{r}
+cv_svm <- function(k, data, ...) {
+
+  # randomly assign each observation to a fold ---
+
+  initialization <- rep(seq_len(k), nrow(data))
+
+  shuffle <- sample(seq_len(nrow(data)), nrow(data))
+
+  fold_label <- initialization[shuffle]
+
+  # compute the error for each validation set ---
+
+  error <- vector("double", k)
+
+  for (i in seq_len(k)) {
+    hold_out <- fold_label == i
+    train <- data[!hold_out, ]
+    test <- data[hold_out, ]
+
+    # fit the candidate SVM on the training set
+
+    svm_kfold <- svm(work ~ .,
+      data = train,
+      ...
+    )
+
+    predict_kfold <- predict(svm_kfold,
+      newdata = test[, !(names(test) %in% c("work"))]
+    )
+
+    # compute classification error
+
+    error[i] <- sum(predict_kfold != test[, "work"]) / length(predict_kfold)
+  }
+
+  # compute the mean error across the validation sets
+
+  mean(error)
+}
+
+cost_values <- c(1, 5, 10)
+
+kernel_values <- c("linear", "sigmoid")
+
+models <- expand.grid(cost = cost_values, kernel = kernel_values)
+
+models$error <- NA_real_
+
+for (cost_candidate in cost_values) {
+  for (kernel_candidate in kernel_values) {
+
+    # run 5-fold cross-validation for each model
+
+    fold_error <- cv_svm(
+      k = 5,
+      data = work_df,
+      scale = FALSE,
+      cost = cost_candidate,
+      kernel = kernel_candidate
+    )
+
+    # store the cross-validation error in a data frame
+
+    models[models$cost == cost_candidate &
+      models$kernel == kernel_candidate, "error"] <- fold_error
+  }
+}
+
+print(models)
+
+(cv_cost <- models[which.min(models$error), "cost"])
+
+(cv_kernel <- models[which.min(models$error), "kernel"])
+
+(cv_error <- models[which.min(models$error), "error"])
+
+```
+
+In this case, an SVM with a linear kernel and a cost of 5 minimizes the 5-fold
+cross-validation error rate among the models considered.
+
+# Section Two: Exercise 2.3
+
+```{r}
+svmfit1 <- svm(work ~ .,
+  data = work_df, scale = FALSE,
+  cost = 5, kernel = "linear"
+)
+
+predict_svmfit <- predict(svmfit1,
+  newdata = work_df[, !(names(work_df) %in% c("work"))]
+)
+(error <- sum(predict_svmfit != work_df[, "work"]) / length(predict_svmfit))
+
+```
+
+The classification error using the cost value of 5 and the linear kernel model will generate an error rate = .134
+
+# Section Two: Exercise 2.4
+
+```{r}
+impute_work1 <- predict(svmfit1,
+  newdata = vote_df[, !(names(vote_df) %in% c("vote"))]
+)
+
+impute_work1 %>% head(5)
+
+```
+
+# Section Two: Exercise 2.5
+
+```{r}
+library(stargazer)
+
+work_numeric <- as.numeric(impute_work1 == "flexible")
+
+vote_numeric <- as.numeric(vote_df$vote == "vote")
+
+reg <- lm(vote_numeric ~ work_numeric + poly(prtage, 2) + pesex,
+  data = vote_df
+)
+
+summary(reg)
+
+work_vote_relationship <- coef(reg)["work_numeric"]
+
+work_vote_relationship
+
+```
+
+The estimated intercept of the regression line indicates that when all the independent variables are zero, the expected value of "vote_numeric" is 0.34357. This means that the likelihood an individual will vote is 34% when all the independent variables are held constant. The relationship is highly 
+statistically significant.
+
+The estimated coefficient for "work_numeric" is 0.31975. This suggests that for every one-unit increase in "work_numeric," the expected value of "vote_numeric" increases by 0.31975, assuming all the other variables remain constant. In other words, as the work schedule becomes more flexible, the likelihood of voting increases by 32%. This relationship is also highly statistically significant.
+
+The coefficients poly(prtage, 2)1 and poly(prtage, 2)2 correspond to a 
+polynomial transformation of the variable "prtage." The polynomial terms of "prtage" were used to capture nonlinear relationships. Specifically, the coefficient -16.31926 is associated with the linear age, and the coefficient 1.75413 corresponds to the quadratic age squared. The results indicate that if 
+an individual is young, the voting likelihood will decrease by 16% for every 
+year the person ages. However, when the individual is a mature adult or elderly, the voting likelihood will increase by approximately 2% for every year increase in age. Both relationships are highly statistically significant.
+
+The estimated coefficient for "pesexMALE" is 0.01463. This suggests that, on average, being male (coded as "pesexMALE = 1") is associated with an increase 
+of 0.01463 in the expected value of "vote_numeric" compared to being female (assuming all other variables are held constant). Therefore, being male 
+increases the voting likelihood by 1% compared to being female. This 
+relationship is not statistically significant at any of the confidence levels.
+
+# Section Two: Exercise 2.6
+
+```{r}
+compute_M <- function(a, b) {
+  1 / (1 - 2 * b) * (1 - (1 - b) * b / a - (1 - b) * b / (1 - a))
+}
+
+(a <- sum(impute_work1 == "flexible") / length(impute_work1))
+
+(b <- cv_error)
+
+(M <- compute_M(a, b))
+
+work_vote_correction <- work_vote_relationship / M
+
+work_vote_correction
+
+```
+
+The bias-corrected version is larger. This means that for every unit increase 
+in work flexibility, the likelihood to vote increases by 44%. This indicates a stronger relationship compared to the non-bias-corrected version, which had a 
+32% likelihood of voting.
+
+# Section Two: Exercise 2.7
+
+```{r}
+library(ggplot2)
+
+num_bootstrap <- 50
+
+bootstrap_work_vote <- vector("double", num_bootstrap)
+
+bootstrap_work_vote_corrected <- vector("double", num_bootstrap)
+
+for (i in seq_len(num_bootstrap)) {
+  bootstrap_index <- sample(nrow(work_df), nrow(work_df), replace = TRUE)
+
+  work_df_bootstrap <- work_df[bootstrap_index, ]
+
+  svm_bootstrap <- svm(work ~ .,
+    data = work_df_bootstrap,
+    scale = FALSE,
+    cost = cv_cost,
+    kernel = cv_kernel
+  )
+
+  impute_bootstrap <- predict(svm_bootstrap,
+    newdata = vote_df[!(names(vote_df) %in% c("vote"))]
+  )
+
+  a_bootstrap <- sum(impute_bootstrap == "flexible") / length(impute_bootstrap)
+
+  b_bootstrap <- cv_svm(
+    k = 5,
+    data = work_df_bootstrap,
+    scale = FALSE,
+    cost = cv_cost,
+    kernel = cv_kernel
+  )
+
+  impute_bootstrap_numeric <- as.numeric(impute_bootstrap == "flexible")
+
+  bootstrap_index <- sample(nrow(vote_df), nrow(vote_df), replace = TRUE)
+
+  vote_df_bootstrap <- vote_df[bootstrap_index, ]
+
+  vote_bootstrap <- vote_numeric[bootstrap_index]
+
+  work_bootstrap <- impute_bootstrap_numeric[bootstrap_index]
+
+  reg_bootstrap <- lm(vote_bootstrap ~ work_bootstrap + poly(prtage, 2) + pesex, data = vote_df_bootstrap)
+
+  bootstrap_work_vote[i] <- coef(reg_bootstrap)["work_bootstrap"]
+
+  M_bootstrap <- compute_M(a_bootstrap, b_bootstrap)
+
+  bootstrap_work_vote_corrected[i] <- bootstrap_work_vote[i] / M_bootstrap
+}
+
+ggplot() +
+  geom_histogram(aes(x = bootstrap_work_vote, fill = "0"), color = "white") +
+  geom_histogram(aes(x = bootstrap_work_vote_corrected, fill = "1"), color = "white") +
+  scale_fill_manual(
+    labels = c("naive", "bias-corrected"),
+    values = c("coral", "cornflowerblue"),
+    name = ""
+  ) +
+  geom_vline(xintercept = work_vote_relationship) +
+  geom_vline(xintercept = work_vote_correction) +
+  xlab("bootstrapped results") +
+  ylab("")
+
+# Lower/ Upper Bound of 95% confidence interval
+
+naive_ci <- quantile(bootstrap_work_vote, prob = c(0.025, .975))
+
+corrected_ci <- quantile(bootstrap_work_vote_corrected, prob = c(0.025, .975))
+
+ggplot() +
+  geom_segment(aes(
+    x = naive_ci["2.5%"], xend = naive_ci["97.5%"],
+    y = "naive", yend = "naive", color = "0"
+  )) +
+  geom_point(aes(x = work_vote_relationship, y = "naive", color = "0")) +
+  geom_segment(aes(
+    x = corrected_ci["2.5%"], xend = corrected_ci["97.5%"],
+    y = "bias-corrected", yend = "bias-corrected", color = "1"
+  )) +
+  geom_point(aes(x = work_vote_correction, y = "bias-corrected", color = "1")) +
+  scale_color_manual(
+    labels = c("naive", "bias-corrected"),
+    values = c("coral", "cornflowerblue")
+  ) +
+  xlab("bootstrapped results") +
+  ylab("") +
+  theme(legend.position = "none")
+
+sd(bootstrap_work_vote)
+
+sd(bootstrap_work_vote_corrected)
+
+```
+
+
+

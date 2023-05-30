@@ -1,0 +1,98 @@
+---
+title: "Assignment_Two_Salameh"
+author: "Sief Salameh"
+date: "4/16/2023"
+output: pdf_document
+---
+## Part One: Load Libraries
+
+```{r}
+setwd("~/Downloads/GIS/Assignment_Two")
+
+library(tidyverse)
+
+library(sf)
+
+library(tmap)
+
+library(RColorBrewer)
+
+library(tidycensus)
+options(tigris_use_cache = TRUE)
+```
+
+## Part Two: Census Data
+
+```{r}
+ACS21var <- load_variables(2021, "acs5", cache = TRUE)
+
+# view(ACS21var)
+
+Cali_county_income <- get_acs(
+  geography = "county",
+  variables = c(per_capita_income = "B19301_001"),
+  state = "CA",
+  year = 2021
+)
+
+Cali_county_sp <- get_acs(
+  state = "CA",
+  geography = "county",
+  variables = c(per_capita_income = "B19301_001"),
+  year = 2021,
+  geometry = TRUE
+)
+
+Cali_tracts_income <- get_acs(
+  geography = "tract",
+  variables = c(per_capita_income = "B19301_001"),
+  state = "CA",
+  year = 2021
+)
+
+Cali_tracts_sp <- get_acs(
+  state = "CA",
+  geography = "tract",
+  variables = c(per_capita_income = "B19301_001"),
+  year = 2021,
+  geometry = TRUE
+)
+
+Cali_tracts_sp <- na.omit(Cali_tracts_sp)
+
+Cali_county_sp <- na.omit(Cali_county_sp)
+```
+
+## Part Three: Mapping
+
+```{r}
+CA_counties <- tm_shape(Cali_county_sp) +
+  tm_fill("estimate",
+    n = 5, palette = "BuPu", style = "quantile",
+    title = "2021 Income Per-Capita 
+         by County"
+  ) +
+  tm_borders(alpha = .5, col = "black") +
+  tm_scale_bar(position = c("left", "bottom")) +
+  tm_compass(text.size = 0.5, position = c("RIGHT")) +
+  tm_layout(legend.text.size = .6, legend.title.size = .9, legend.position = c("right", "top"), frame = TRUE, legend.width = 1.5)
+
+
+CA_tracts <- tm_shape(Cali_tracts_sp) +
+  tm_fill("estimate",
+    n = 5, palette = "BuPu", style = "quantile",
+    title = "2021 Income Per-Capita 
+         by Census Tract"
+  ) +
+  tm_borders(alpha = .2, col = "black") +
+  tm_compass(text.size = 0.5, position = c("RIGHT")) +
+  tm_scale_bar(position = c("left", "bottom")) +
+  tm_layout(legend.text.size = .6, legend.title.size = .9, legend.position = c("right", "top"), frame = TRUE, legend.width = 1.5)
+
+
+# tmap_save(tmap_arrange(CA_counties, CA_tracts),
+#  filename = "my_plot.png", width = 7, height = 5
+# )
+```
+
+## END

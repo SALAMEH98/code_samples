@@ -1,0 +1,461 @@
+---
+title: "Problem_Set_4"
+author: "Sief Salameh"
+date: "5/20/2023"
+output:
+  word_document: default
+  pdf_document: default
+---
+# Section One:
+
+# Part A:
+
+```{r}
+library(tm)
+library(tidyverse)
+
+texts <- file.path("~/Downloads/Machine_Learning/Problem_Set_Four/SimpleText_auto")
+
+docs <- VCorpus(DirSource(texts))
+
+```
+
+# Part B:
+
+```{r}
+clean_corpus <- function(corpus) {
+  corpus <- tm_map(corpus, content_transformer(tolower))
+
+  corpus <- tm_map(corpus, removePunctuation)
+
+  corpus <- tm_map(corpus, removeNumbers)
+
+  corpus <- tm_map(corpus, removeWords, stopwords("english"))
+
+  academic_words <- c(
+    "table", "figure", "results", "analyze",
+    "concept", "construct", "data", "define", "evidence", "framework",
+    "hypothesis", "interpret", "methodology", "perspective", "principle",
+    "quantitative", "research", "significant", "theory", "variable",
+    "validity", "conclude", "critique", "figure", "model", "analysis", "can",
+    "since", "therefore", "first", "state", "within", "use", "using", "similar",
+    "used", "shown", "shows", "however", "give", "given", "also", "compared",
+    "found", "fig", "two", "present", "well", "may", "time", "different", "one",
+    "study", "show", "will", "due", "thus", "let", "see", "number", "based",
+    "set", "left"
+  )
+
+  corpus <- tm_map(corpus, removeWords, academic_words)
+
+  corpus <- tm_map(corpus, stripWhitespace)
+
+  return(corpus)
+}
+
+cleaned_docs <- clean_corpus(docs)
+```
+
+In Part B, I transformed all the words to lowercase to help standardize the 
+document. Then, I removed all punctuation, numbers, and stopwords. Additionally, 
+I created a set of custom words to filter out. I repeatedly ran the code and generated word clouds to visualize the non-necessary words that were appearing. 
+I would then take those words and further filter them out through a cyclical 
+process. These words are common academic jargon that, in my opinion, do not contribute to distinguishing the stem topic. Lastly, I removed all whitespace 
+and executed the function to clean the words in the documents.
+
+# Part C:
+
+```{r}
+library(wordcloud)
+
+word_matrix <- DocumentTermMatrix(cleaned_docs)
+
+freq_words <- findFreqTerms(word_matrix, 50)
+
+freq_table <- data.frame(
+  word = freq_words,
+  freq = colSums(as.matrix(word_matrix[, freq_words]))
+)
+
+freq_table <- freq_table[order(freq_table$freq, decreasing = TRUE), ]
+
+wordcloud(freq_table$word, freq_table$freq, scale = c(2, 0.1), max.words = 50, random.order = FALSE, rot.per = 0.2)
+
+freq_table %>% head(50)
+```
+
+# Part D:
+
+```{r}
+library(topicmodels)
+
+k_values <- c(2, 3, 5, 8, 10)
+
+for (k in k_values) {
+  lda_model <- LDA(word_matrix, k)
+  cat("LDA Model with k = ", k, "\n")
+
+  top_freq_words <- terms(lda_model, 10)
+
+  for (i in 1:k) {
+    cat("Topic", i, ": ")
+    cat(paste(top_freq_words[i, ], collapse = ", "))
+    cat("\n")
+  }
+
+  cat("------------------------\n\n")
+}
+```
+
+LDA Model with k = 2:
+
+Topic 1: This topic indicates a correlation with biological and ecological 
+terms, such as soil and cells.
+
+Topic 2: This topic includes words like values and energy, representing a 
+potential correlation with numerical or quantitative terminology related to 
+energy.
+
+LDA Model with k = 3:
+
+Topic 1: This topic mentions words such as soil, flow, and cells, possibly indicating a focus on biological systems or dynamics.
+
+Topic 2: This topic involves words like temperature, case, and energy, 
+suggesting a correlation with thermal science and case studies related to 
+energy.
+
+Topic 3: This topic includes words such as values, section, and electron, which indicates a correlation related to topics such as experimental measurements, sections in scientific papers, and electron-related phenomena.
+
+LDA Model with k = 5:
+
+Topic 1: This topic includes words like energy, cells, soil, clusters, and theorem, which could indicate a relationship to energy systems, cellular biology, and mathematical theorems.
+
+Topic 2: This topic involves words like flow, cell, species, cluster, and lemma, suggesting a correlation to topics such as fluid flow, cellular biology, and mathematical lemmas.
+
+Topic 3: This topic includes words such as wind, human, nodes, network, and 
+order, indicating a potential focus on scientific topics related to network 
+systems, human factors, and ordered structures.
+
+Topic 4: This topic involves words like temperature, expression, plants, performance, and proof, suggesting a focus on topics such as temperature 
+effects, gene expression, plant biology, and performance evaluation.
+
+Topic 5: This topic includes words such as velocity, culture, module, values,
+and maximal, which might correlate to topic areas related to fluid velocity, cultural aspects, modular systems, and maximum values.
+
+LDA models with topic sizes 8 and 10 both yield similar topic selections, and 
+the distribution of words is identical to that of smaller LDA sizes. They do not generate unique or distinct word patterns that help distinguish the topic theme 
+or subject matter. 
+
+Based on my opinion, a k-size of 5 yields the most meaningful coherence for each topic. This is because k-sizes 2 and 3 are too small and do not reveal 
+significant information regarding word meaning or the context of word 
+distribution. On the other hand, k-sizes 8 and 10 provide too much information 
+and overwhelm the reader with noisy words. Thus, a k-size of 5 is an effective measure to distinguish between each topic theme and the quantity of words that 
+each topic encompasses.
+
+# Part E:
+
+```{r, eval=FALSE}
+set.seed(123)
+
+k_values <- c(2, 3, 5, 8, 10)
+fold <- 10
+
+best_model <- NULL
+
+best_perplexity <- Inf
+
+for (k in k_values) {
+  fold_perplexities <- c()
+
+  for (i in 1:fold) {
+
+    # Creating training and testing sets
+
+    set.seed(123)
+    train_indices <- sample(seq_len(nrow(word_matrix)),
+      size = floor((fold - 1) / fold * nrow(word_matrix)), replace = FALSE
+    )
+
+    training_data <- word_matrix[train_indices, ]
+    test_data <- word_matrix[-train_indices, ]
+
+    # Training the LDA model
+
+    lda_model.cv <- LDA(training_data, k)
+
+    # Calculating the perplexity on test set
+
+    perplexity <- perplexity(lda_model.cv, newdata = test_data)
+    fold_perplexities <- c(fold_perplexities, perplexity)
+  }
+
+  avg_perplexity <- mean(fold_perplexities)
+
+  if (avg_perplexity < best_perplexity) {
+    best_perplexity <- avg_perplexity
+    best_model <- LDA(word_matrix, k)
+  }
+}
+
+# Presenting the topics from the best model
+
+cat("Best LDA Model:\n")
+cat("Number of Topics (k):", best_model$k, "\n")
+cat("Perplexity:", best_perplexity, "\n")
+
+top_freq_words <- terms(best_model, 10)
+
+for (i in 1:best_model$k) {
+  cat("Topic", i, ": ")
+  cat(paste(top_freq_words[i, ], collapse = ", "))
+  cat("\n")
+}
+```
+
+# Section Two
+
+# Part A:
+
+```{r}
+library(ggplot2)
+
+theta <- seq(0, 2 * pi, length.out = 100)
+X1 <- -1 + 2 * cos(theta)
+X2 <- 2 + 2 * sin(theta)
+
+plot_one <- data.frame(X1, X2)
+
+ggplot(plot_one, aes(X1, X2)) +
+  geom_path() +
+  xlim(-6, 4) +
+  ylim(-1, 5) +
+  xlab("X1") +
+  ylab("X2") +
+  ggtitle("Curve: (1 + X1)^2 + (2 - X2)^2 = 4")
+
+```
+
+# Part B:
+
+```{r}
+plot(NA, NA,
+  type = "n", xlim = c(-6, 4), ylim = c(-1, 5), asp = 1,
+  xlab = "X1", ylab = "X2"
+)
+
+symbols(c(-1), c(2), circles = c(2), add = TRUE, inches = FALSE)
+
+text(c(-1), c(2), "< or = 4")
+text(c(-4), c(2), "> 4")
+
+```
+
+# Part C:
+
+```{r}
+plot(c(0, -1, 2, 3), c(0, 1, 2, 8),
+  col = c("blue", "red", "blue", "blue"),
+  type = "p", asp = 1, xlab = "X1", ylab = "X2"
+)
+symbols(c(-1), c(2), circles = c(2), add = TRUE, inches = FALSE)
+
+```
+
+(0, 0) would be classified blue since it is outside the circle.
+(-1, 1) would be classified red since it is inside the circle.  
+(2, 2) would be classified blue since it is outside of the circle.
+(3, 8) would be classified blue since it is outside of the circle. 
+
+# Part D:
+
+By expanding the equation of the decision boundary, (1 + X1)² + (2 - X2)² = 4, 
+we can obtain:
+
+(1 + X1)² + (2 - X2)² = 4
+1 + 2X1 + X1² + 4 - 4X2 + X2² = 4
+X1² + X2² + 2X1 - 4X2 + 1 = 0
+
+This is a quadratic equation in terms of X1 and X2. However, when we
+introduce the additional variables Y1 = X1² and Y2 = X2², we can rewrite the equation as:
+
+Y1 + Y2 + 2X1 - 4X2 + 1 = 0
+
+When we expand the equation to this form, it becomes linear in terms of X1, 
+X1², X2, and X2². The linear coefficients are 2 and -4, multiplying X1 and X2, respectively, while Y1 and Y2 serve as additional terms.
+
+# Section Three:
+
+```{r}
+library(e1071)
+library(mlbench)
+
+set.seed(321)
+
+shift <- 5
+
+X <- matrix(rnorm(100 * 2), ncol = 2)
+
+X[1:30, ] <- X[1:30, ] + shift
+
+X[31:60, ] <- X[31:60, ] - shift
+
+y <- c(rep(0, 60), rep(1, 40))
+
+simulated_data <- data.frame(Feature1 = X[, 1], Feature2 = X[, 2], Class = as.factor(y))
+
+plot(X, col = y + 1)
+
+train_function <- sample(100, 80)
+
+training_data <- simulated_data[train_function, ]
+
+test_data <- simulated_data[-train_function, ]
+
+# Fitting the data with a Support Vector Classifier
+
+svm_linear <- svm(Class ~ .,
+  data = training_data, kernel = "linear",
+  scale = FALSE
+)
+
+plot(svm_linear, data = training_data)
+
+summary(svm_linear)
+
+table(predicted = svm_linear$fitted, truth = training_data$Class)
+
+# Fitting the data with polynomial kernel
+
+svm_poly <- svm(Class ~ .,
+  data = training_data, kernel = "polynomial",
+  scale = FALSE
+)
+
+plot(svm_poly, data = training_data)
+
+table(predicted = svm_poly$fitted, truth = training_data$Class)
+
+# Fitting the data with radial kernel
+
+svm_radial <- svm(Class ~ .,
+  data = training_data, kernel = "radial",
+  scale = FALSE
+)
+
+plot(svm_radial, data = training_data)
+
+table(predicted = svm_radial$fitted, truth = training_data$Class)
+
+# Comparing the test errors for the 3 kernels:
+
+linear_pred <- predict(svm_linear, test_data)
+
+table(predicted = linear_pred, truth = test_data$Class)
+
+poly_pred <- predict(svm_poly, test_data)
+
+table(predicted = poly_pred, truth = test_data$Class)
+
+radial_pred <- predict(svm_radial, test_data)
+
+table(predicted = radial_pred, truth = test_data$Class)
+
+```
+
+# Section Four
+
+# Part A:
+
+```{r}
+library(ISLR)
+
+data(Auto)
+
+median_mpg <- median(Auto$mpg)
+
+Auto$mpg_binary <- ifelse(Auto$mpg > median_mpg, 1, 0)
+
+Auto$mpg_binary <- as.factor(Auto$mpg_binary)
+
+```
+
+# Part B:
+
+```{r}
+library(e1071)
+
+set.seed(10)
+
+cost_tune <- tune(svm, mpg_binary ~ ., data = Auto, kernel = "linear", ranges = list(cost = c(.001, 0.01, 0.1, 1, 10, 100, 1000)))
+
+summary(cost_tune)
+
+```
+
+In the linear model, the lowest error of 0.007628205 was achieved when the cost parameter was set to 1, indicating that this parameter value yielded the best performance for the support vector (SVM) machine. The dispersion represents the variability or spread of errors across different cost values.
+
+# Part C:
+
+```{r}
+# For the radial basis kernel (rbf):
+
+set.seed(09)
+
+cost_tune_rbf <- tune(svm, mpg_binary ~ .,
+  data = Auto, kernel = "radial",
+  ranges = list(
+    cost = c(.001, 0.01, 0.1, 1, 10),
+    gamma = c(0.01, 0.1, 1, 5, 10, 100)
+  )
+)
+summary(cost_tune_rbf)
+
+# For the polynomial basis kernel (poly):
+
+set.seed(08)
+
+cost_tune_poly <- tune(svm, mpg_binary ~ ., data = Auto, kernel = "polynomial", ranges = list(cost = c(.001, 0.01, 0.1, 1, 10), degree = c(1, 2, 3, 4, 5)))
+
+summary(cost_tune_poly)
+
+```
+
+The parameter tuning process for the radial basis kernel model suggests that 
+the SVM model performs best when the cost parameter is set to 10 and the gamma parameter is set to 0.01. This yields the lowest error of 0.02301282. The 
+dispersion represents the variability or spread of errors across different cost 
+and gamma values. It appears that the parameter combinations with lower values 
+of cost and gamma generally result in higher error rates.
+
+The parameter tuning process for the polynomial basis kernel model suggests that 
+the SVM model performs best when the cost parameter is set to 10 and the degree parameter is set to 1. This yields the lowest error of 0.06371795. The 
+dispersion represents the variability or spread of errors across different cost 
+and degree values.
+
+# Part D:
+
+```{r}
+svm_linear <- svm(mpg_binary ~ ., data = Auto, kernel = "linear", cost = 1)
+
+svm_poly <- svm(mpg_binary ~ .,
+  data = Auto, kernel = "polynomial", cost = 10,
+  degree = 1
+)
+
+svm_radial <- svm(mpg_binary ~ .,
+  data = Auto, kernel = "radial", cost = 10,
+  gamma = 0.01
+)
+
+plotpairs <- function(fit) {
+  for (name in names(Auto)[!(names(Auto) %in% c("mpg", "mpg_binary", "name"))])
+  {
+    plot(fit, Auto, as.formula(paste("mpg~", name, sep = "")))
+  }
+}
+
+plotpairs(svm_linear)
+
+plotpairs(svm_poly)
+
+plotpairs(svm_radial)
+```
+

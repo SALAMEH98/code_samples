@@ -1,0 +1,491 @@
+---
+title: "Lab_Three_Salameh"
+author: "Sief Salameh"
+date: "5/8/2023"
+output:
+  word_document: default
+  pdf_document: default
+---
+# Part 3 - Data Analysis
+
+```{r message=FALSE}
+setwd("~/Downloads/Machine_Learning/Lab_Three_Salameh")
+
+library(tidyverse)
+library(gbm)
+library(ISLR)
+library(tree)
+library(glmnet)
+library(leaps)
+
+Covid_df <- read.csv("CovidData.csv")
+
+```
+
+# Question 1:
+
+The “VariableDescription.xlsx” spreadsheet contains a list of variables that 
+we’ll use for our analyses. Note that this is not a full list of all the 
+variables in the dataset, although it’s close (we ignoring a few perfectly 
+co-linear predictors). Filter the full set of variables in the
+dataset down to the Opportunity Insights and PM COVID variables listed in the
+spreadsheet along with ‘county’, ‘state’ and ‘deathspc’.
+
+```{r}
+Covid_df <- Covid_df[, c(
+  "state", "deathspc", "intersects_msa", "cur_smoke_q1", "cur_smoke_q2", "cur_smoke_q3", "cur_smoke_q4", "bmi_obese_q1", "bmi_obese_q2", "bmi_obese_q3", "bmi_obese_q4", "exercise_any_q1",
+  "exercise_any_q2", "exercise_any_q3", "exercise_any_q4", "brfss_mia", "puninsured2010", "reimb_penroll_adj10", "mort_30day_hosp_z", "adjmortmeas_amiall30day", "adjmortmeas_chfall30day", "med_prev_qual_z", "primcarevis_10", "diab_hemotest_10", "diab_eyeexam_10", "diab_lipids_10", "mammogram_10", "cs00_seg_inc", "cs00_seg_inc_pov25", "cs00_seg_inc_aff75", "cs_race_theil_2000", "gini99", "poor_share", "inc_share_1perc",
+  "frac_middleclass", "scap_ski90pcm", "rel_tot", "cs_frac_black", "cs_frac_hisp", "unemp_rate", "cs_labforce", "cs_elf_ind_man", "cs_born_foreign", "mig_inflow", "mig_outflow", "pop_density", "frac_traveltime_lt15", "hhinc00", "median_house_value", "ccd_exp_tot", "score_r", "cs_fam_wkidsinglemom", "subcty_exp_pc", "taxrate", "tax_st_diff_top20", "pm25", "pm25_mia",
+  "summer_tmmx", "summer_rmax", "winter_tmmx", "winter_rmax", "bmcruderate"
+)]
+
+```
+
+# Question 2:
+
+Compute descriptive (summary) statistics for the subset of Opportunity 
+Insights and PM COVID variables you filtered in previous question.
+
+```{r}
+summary(Covid_df)
+
+apply(Covid_df, 2, sd, na.rm = TRUE)
+
+```
+
+# Question 3:
+
+Note that some variables have missing values. This causes problems when 
+estimating the models. Normally we’d impute missing values by replacing them 
+with their mean or median value, but to keep things simple, given the size of 
+our data, you should drop all observations (rows) with missing values.
+
+```{r}
+Covid_df <- na.omit(Covid_df)
+
+```
+
+# Question 4:
+
+Create a separate dummy variable for each of the 48 states and the District of Columbia in the dataset (so you’ll create 49 dummy variables in total).
+
+```{r}
+states <- unique(Covid_df$state)
+
+dummy_states <- sapply(states, function(x) as.numeric(Covid_df$state == x))
+
+colnames(dummy_states) <- states
+
+Covid_df <- cbind(Covid_df, dummy_states)
+
+Covid_df$state <- NULL
+
+Covid_df$county <- NULL
+
+```
+
+# Question 5:
+
+Split the sample into training (80% of the data) and test (20% of the data) 
+sets. Be sure to set a seed so you can replicate your work.
+
+```{r}
+set.seed(123)
+
+n_obs <- nrow(Covid_df)
+
+split_index <- sample(seq_len(n_obs),
+  size = floor(0.8 * n_obs),
+  replace = FALSE
+)
+
+train_data <- Covid_df[split_index, ]
+
+test_data <- Covid_df[-split_index, ]
+```
+
+# Question 6
+
+Using the training data, estimate the relationship between COVID-19 deaths per capita (y = deathspc) and the Opportunity Insights and PM COVID predictors 
+listed in the spreadsheet, as well as state-level fixed effects (the state dummy variables) using OLS.
+
+# Part A:
+
+Based on those estimates, calculate and report the MSE and R2 in both the 
+training and test sets.
+
+```{r}
+OLS_model_train <- lm(deathspc ~ ., data = train_data)
+
+Train_prediction <- predict(OLS_model_train, newdata = test_data)
+
+MSE_Train <- mean((test_data$deathspc - Train_prediction)^2)
+
+output_1 <- paste("The MSE for the Training Data", MSE_Train)
+
+print(output_1)
+
+train_r2 <- 1 - MSE_Train / var(train_data$deathspc)
+
+train_r2
+
+summary(OLS_model_train)
+
+OLS_model_test <- lm(deathspc ~ ., data = test_data)
+
+Test_prediction <- predict(OLS_model_test, newdata = train_data)
+
+MSE_Test <- mean((train_data$deathspc - Test_prediction)^2)
+
+output_2 <- paste("The MSE for the Test Data", MSE_Test)
+
+print(output_2)
+
+test_r2 <- 1 - MSE_Test / var(test_data$deathspc)
+
+test_r2
+
+summary(OLS_model_test)
+
+```
+
+The MSE for the Training data is equal to 
+The R^2 for the Training data is equal to 
+
+The MSE for the Test data is equal to 
+The R^2 for the Test data is equal to 
+
+# Part B:
+
+Is there any evidence of overfitting? Briefly explain
+
+Yes, there is evidence of overfitting when the training model performs 
+significantly better than the test model. The mean squared error (MSE) for the training model was much lower than that of the test model, indicating that the 
+model is fitting the noise in the training data too closely instead of the underlying pattern. This leads to high variance and low bias, resulting in a 
+failure to generalize well to new data. Ultimately, this creates a model that performs well on the training data but poorly on new, unseen data. We also know 
+that the MSE continues to decrease as the model becomes more complex 
+(adding more predicting variables). However, the MSE for the test data will 
+decrease initially, but then increase overtime as we continue to add more co-variates.
+
+# Question 7
+
+Use the training set to estimate Ridge Regression and the Lasso analogs to the 
+OLS model in the previous question. For each, you should report a plot of the 
+cross-validation estimates of the test error as a function of the value of the hyperparameter (λ) that indicates the tuned value of λ. Hint: to do so you
+should be sure standardize your predictors and tune the hyperparameter by:
+
+a. Calculating each model for a grid or range of values of λ. You’ll want to 
+adjust the values you use based on the data, but start by using 100 values of 
+λ from 0.01 to 100.
+
+b. Using 10-fold cross-validation (10FCV) (on the training set) to estimate 
+the test error for each model at the given value of λ.
+
+c. Plotting the cross-validation estimates of the test error as a function of 
+the value of λ.
+
+d. Choosing the optimal value of λ.
+
+e. Re-estimating your model using that optimal value of λ
+
+# Question 7 Ridge Regression 
+
+# Part A:
+
+```{r}
+library(glmnet)
+
+set.seed(321)
+
+# Standardize predictors
+
+stndrd_ridge1 <- model.matrix(OLS_model_train)
+
+# Set up grid of lambda values
+
+a1 <- seq(-2, 2, by = 1/25)
+
+r1 <- 10^a1
+
+# Fit Ridge Regression model for each value of lambda
+
+ridge_model1 <- glmnet(stndrd_ridge1,
+  train_data$deathspc,
+  alpha = 0,
+  lambda = r1
+)
+
+```
+
+# Part B:
+
+Perform 10-fold cross-validation to estimate test error
+
+```{r}
+cv_ridge1 <- cv.glmnet(stndrd_ridge1,
+  train_data$deathspc,
+  alpha = 0,
+  lambda = r1,
+  nfolds = 10
+)
+
+```
+
+# Part C:
+
+Plot cross-validation estimates of test error
+
+```{r}
+plot(cv_ridge1)
+
+```
+
+# Part D:
+
+Choose optimal value of lambda
+
+```{r}
+opt_lambda1 <- cv_ridge1$lambda.min
+
+output_3 <- paste("The optimal value of lambda for the ridge regression is", opt_lambda1)
+
+print(output_3)
+
+```
+
+# Part: E
+
+Re-estimate model using optimal value of lambda
+
+```{r}
+ridge_model_opt1 <- glmnet(stndrd_ridge1,
+  train_data$deathspc,
+  alpha = 0,
+  lambda = opt_lambda1
+)
+
+```
+
+# Question 7 Lasso Regression:
+
+# Part A:
+
+```{r}
+library(glmnet)
+
+set.seed(321)
+
+# Standardize predictors
+
+stndrd_lasso2 <- model.matrix(OLS_model_train)
+
+# Set up grid of lambda values
+
+a2 <- seq(-2, 2, by = 1 / 25)
+
+l2 <- 10^a2
+
+# Fit Lasso Regression model for each value of lambda
+
+lasso_model2 <- glmnet(stndrd_lasso2,
+  train_data$deathspc,
+  alpha = 1,
+  lambda = l2
+)
+
+```
+
+# Part B:
+
+Perform 10-fold cross-validation to estimate test error
+
+```{r}
+cv_lasso2 <- cv.glmnet(stndrd_lasso2,
+  train_data$deathspc,
+  alpha = 1,
+  lambda = l2,
+  nfolds = 10
+)
+
+```
+
+# Part C:
+
+Plot cross-validation estimates of test error
+
+```{r}
+plot(cv_lasso2)
+
+```
+
+# Part D:
+
+Choose optimal value of lambda
+
+```{r}
+lambda_opt2 <- cv_lasso2$lambda.min
+
+output_4 <- paste("The optimal value of lambda for the lasso regression is", lambda_opt2)
+
+print(output_4)
+
+```
+
+# Part E:
+
+Re-estimate model using optimal value of lambda
+
+```{r}
+lasso_model_opt2 <- glmnet(stndrd_lasso2,
+  train_data$deathspc,
+  alpha = 1,
+  lambda = lambda_opt2
+)
+
+```
+
+
+# Question 8:
+
+Using the optimal values of λ you found for Ridge Regression and the Lasso 
+in the previous question, calculate and report the training- and test-set 
+prediction errors (MSE & R2) for each model. Did Ridge Regression and/or the 
+Lasso mitigate overfitting? Briefly explain your results.
+
+# Ridge Regression Training Set
+
+```{r}
+stndrd_ridge3 <- model.matrix(OLS_model_test)
+
+ridge_train_pred <- predict(ridge_model_opt1, newx = stndrd_ridge3)
+
+ridge_train_mse <- mean((test_data$deathspc - ridge_train_pred)^2)
+
+ridge_train_mse
+
+ridge_train_r2 <- 1 - ridge_train_mse / var(train_data$deathspc)
+
+ridge_train_r2
+```
+
+# Ridge Regression Test Set
+
+```{r}
+stndrd_ridge3 <- model.matrix(OLS_model_test)
+
+# Set up grid of lambda values
+
+a3 <- seq(-2, 2, by = 1 / 25)
+
+r3 <- 10^a1
+
+# Fit Ridge Regression model for each value of lambda
+
+ridge_model3 <- glmnet(stndrd_ridge3,
+  test_data$deathspc,
+  alpha = 0,
+  lambda = r3
+)
+
+cv_ridge3 <- cv.glmnet(stndrd_ridge3,
+  test_data$deathspc,
+  alpha = 0,
+  lambda = r3,
+  nfolds = 10
+)
+
+opt_lambda3 <- cv_ridge3$lambda.min
+
+ridge_model_opt3 <- glmnet(stndrd_ridge3,
+  test_data$deathspc,
+  alpha = 0,
+  lambda = opt_lambda3
+)
+
+ridge_test_pred <- predict(ridge_model_opt3, newx = stndrd_ridge1)
+
+ridge_test_mse <- mean((train_data$deathspc - ridge_test_pred)^2)
+
+ridge_test_mse
+
+ridge_test_r2 <- 1 - ridge_test_mse / var(test_data$deathspc)
+
+ridge_test_r2
+```
+
+The MSE for the Ridge Regression Training data is equal to 
+The R^2 for the Ridge Regression Training data is equal to 
+
+The MSE for the Ridge Regression Test data is equal to 
+The R^2 for the Ridge Regression Test data is equal to
+
+# Lasso Regression Training Set
+
+```{r}
+stndrd_lasso4 <- model.matrix(OLS_model_test)
+
+lasso_train_pred <- predict(lasso_model_opt2,
+  newx = stndrd_lasso4
+)
+
+lasso_train_mse <- mean((test_data$deathspc - lasso_train_pred)^2)
+
+lasso_train_mse
+
+lasso_train_r2 <- 1 - lasso_train_mse / var(train_data$deathspc)
+
+lasso_train_r2
+
+```
+
+# Lasso Regression Test Set
+
+```{r}
+stndrd_lasso4 <- model.matrix(OLS_model_test)
+
+a4 <- seq(-2, 2, by = 1 / 25)
+
+l4 <- 10^a2
+
+# Fit Lasso Regression model for each value of lambda
+
+lasso_model4 <- glmnet(stndrd_lasso4,
+  test_data$deathspc,
+  alpha = 1,
+  lambda = l4
+)
+
+cv_lasso4 <- cv.glmnet(stndrd_lasso4,
+  test_data$deathspc,
+  alpha = 1,
+  lambda = l4,
+  nfolds = 10
+)
+
+lambda_opt4 <- cv_lasso4$lambda.min
+
+lasso_model_opt4 <- glmnet(stndrd_lasso4,
+  test_data$deathspc,
+  alpha = 1,
+  lambda = lambda_opt4
+)
+
+lasso_test_pred <- predict(lasso_model_opt4,
+  newx = stndrd_lasso2
+)
+
+lasso_test_mse <- mean((train_data$deathspc - lasso_test_pred)^2)
+
+lasso_test_mse
+
+lasso_test_r2 <- 1 - lasso_test_mse / var(test_data$deathspc)
+
+lasso_test_r2
+
+```
+
+The MSE for the Lasso Regression Training data is equal to 
+The R^2 for the Lasso Regression Training data is equal to 
+
+The MSE for the Lasso Regression Test data is equal to 
+The R^2 for the Lasso Regression Test data is equal to 
