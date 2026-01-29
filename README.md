@@ -20,7 +20,7 @@ tidyverse: Tidy data principles and transformations
 
 web_scraping: Data collection pipelines from web sources
 
-writing_samples
+writing_samples – Memorandums, policy briefs, and research papers demonstrating concise, proficient, and professional English writing, with an emphasis on clarity, structure, and analytical rigor
 
 Each subfolder contains well-documented R scripts, R Markdown notebooks, and supporting files that you can run, adapt, and explore on your own.
 
